@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Ref__ref_search_documentation",
+      "mcp__Ref__ref_read_url",
+      "Bash(find:*)",
+      "WebFetch(domain:developers.bannerbear.com)"
+    ],
+    "deny": []
+  }
+}
