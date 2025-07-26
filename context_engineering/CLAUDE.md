@@ -26,7 +26,8 @@
 
 ### ✅ Task Completion
 - **Mark completed tasks in `TASK.md`** immediately after finishing them.
-- Add new sub-tasks or TODOs discovered during development to `TASK.md` under a “Discovered During Work” section.
+- Add new sub-tasks or TODOs discovered during development to `TASK.md` under a "Discovered During Work" section.
+- **CRITICAL: Push to git after every major change** - This includes new features, bug fixes, refactoring, or any significant code modifications. Version control is essential for tracking progress and preventing work loss.
 
 ### 📎 Code Style & Structure
 - **Write concise, technical TypeScript code** with accurate examples.
@@ -204,3 +205,4 @@
 - **Never hallucinate libraries or functions** – only use known, verified React/NextJS/TypeScript packages.
 - **Always confirm file paths and component names** exist before referencing them in code or tests.
 - **Never delete or overwrite existing code** unless explicitly instructed to or if part of a task from `TASK.md`.
+- **CRITICAL: Push to git after every major change** - This includes new features, bug fixes, refactoring, or any significant code modifications. Version control is essential for tracking progress and preventing work loss.
