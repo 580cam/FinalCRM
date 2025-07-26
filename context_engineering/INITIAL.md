@@ -359,12 +359,103 @@ The `examples/` folder contains practical implementation examples for the CRM ap
 - Testing Pages: https://nextjs.org/docs/app/building-your-application/testing
 - Testing API Routes: https://nextjs.org/docs/app/building-your-application/testing/jest#testing-api-routes
 
+### Monorepo & Build Tools
+
+**Turborepo**
+- Official Documentation: https://turbo.build/repo/docs
+- Getting Started: https://turbo.build/repo/docs/getting-started
+- Configuration: https://turbo.build/repo/docs/reference/configuration
+- GitHub Repository: https://github.com/vercel/turbo
+
+**pnpm Workspaces**
+- Official Documentation: https://pnpm.io/workspaces
+- Package Management: https://pnpm.io/cli/add
+- Configuration: https://pnpm.io/pnpm-workspace_yaml
+- Monorepo Guide: https://pnpm.io/using-changesets
+
+**TypeScript Project References**
+- Official Documentation: https://www.typescriptlang.org/docs/handbook/project-references.html
+- Configuration: https://www.typescriptlang.org/tsconfig#references
+- Monorepo Setup: https://www.typescriptlang.org/docs/handbook/project-references.html#guidance-for-monorepos
+
+### Mobile Development
+
+**Expo**
+- Official Documentation: https://docs.expo.dev/
+- Expo Router: https://docs.expo.dev/router/introduction/
+- Installation: https://docs.expo.dev/get-started/installation/
+- Development Build: https://docs.expo.dev/develop/development-builds/introduction/
+- EAS Build: https://docs.expo.dev/build/introduction/
+
+**React Native**
+- Official Documentation: https://reactnative.dev/docs/getting-started
+- Components: https://reactnative.dev/docs/components-and-apis
+- Navigation: https://reactnavigation.org/docs/getting-started/
+- Performance: https://reactnative.dev/docs/performance
+
+**NativeWind**
+- Official Documentation: https://www.nativewind.dev/
+- Setup Guide: https://www.nativewind.dev/quick-starts/expo
+- Styling: https://www.nativewind.dev/core-concepts/styling
+- GitHub Repository: https://github.com/nativewind/nativewind
+
+### State Management & Data
+
+**Zustand**
+- Official Documentation: https://github.com/pmndrs/zustand
+- Getting Started: https://github.com/pmndrs/zustand#first-create-a-store
+- TypeScript Guide: https://github.com/pmndrs/zustand#typescript-usage
+- Persist Middleware: https://github.com/pmndrs/zustand#persist-middleware
+
+**TanStack Query (React Query)**
+- Official Documentation: https://tanstack.com/query/latest
+- Quick Start: https://tanstack.com/query/latest/docs/framework/react/quick-start
+- TypeScript: https://tanstack.com/query/latest/docs/framework/react/typescript
+- React Native: https://tanstack.com/query/latest/docs/framework/react/react-native
+
+### Mobile-Specific Libraries
+
+**React Native Chart Kit**
+- GitHub Repository: https://github.com/indiespirit/react-native-chart-kit
+- Documentation: https://github.com/indiespirit/react-native-chart-kit#documentation
+- Examples: https://github.com/indiespirit/react-native-chart-kit#example
+
+**Victory Native**
+- Official Documentation: https://formidable.com/open-source/victory/docs/native/
+- Getting Started: https://formidable.com/open-source/victory/docs/native/#getting-started
+- Chart Types: https://formidable.com/open-source/victory/docs/native/victory-chart/
+
+**Expo Vector Icons**
+- Documentation: https://docs.expo.dev/guides/icons/
+- Icon Directory: https://icons.expo.fyi/
+- Usage Guide: https://docs.expo.dev/guides/icons/#icon-libraries
+
+**React Native Elements**
+- Official Documentation: https://reactnativeelements.com/docs/
+- Components: https://reactnativeelements.com/docs/components/overview
+- Theming: https://reactnativeelements.com/docs/customizing
+
+### Mobile Testing
+
+**Detox**
+- Official Documentation: https://wix.github.io/Detox/
+- Getting Started: https://wix.github.io/Detox/docs/introduction/getting-started
+- React Native Setup: https://wix.github.io/Detox/docs/introduction/project-setup
+- GitHub Repository: https://github.com/wix/Detox
+
+**Storybook**
+- React Native Storybook: https://storybook.js.org/docs/react-native/get-started/introduction
+- Setup Guide: https://storybook.js.org/docs/react-native/get-started/install
+- Configuration: https://storybook.js.org/docs/react-native/configure/overview
+
 ### Development Tools & Resources
 
 **GitHub Repositories**
 - Next.js Examples: https://github.com/vercel/next.js/tree/canary/examples
 - Supabase Examples: https://github.com/supabase/supabase/tree/master/examples
 - React Patterns: https://github.com/reactpatterns/reactpatterns.com
+- Expo Examples: https://github.com/expo/examples
+- React Native Directory: https://reactnative.directory/
 
 **Community Resources**
 - Next.js Discord: https://discord.com/invite/bUG2bvbtHy

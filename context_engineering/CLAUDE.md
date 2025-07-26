@@ -170,13 +170,47 @@
     - Use read-only mode when possible for safer operations
 
 ### 🛠️ Tech Stack
-- **NextJS** 
-- **React**
-- **TypeScript**
-- **Tailwind CSS**
-- **Shadcn UI**
-- **Supabase** (including OAuth and realtime)
-- **Tremor** for data visualization
+
+#### **Core Framework & Language**
+- **NextJS 14** (Web application with App Router)
+- **React 18** (Component library and hooks)
+- **TypeScript** (Type safety across all platforms)
+- **Expo** (Mobile development platform with Expo Router)
+- **React Native** (Mobile UI components)
+
+#### **Monorepo & Build Tools**
+- **Turborepo** (Monorepo build system and task runner)
+- **pnpm Workspaces** (Package management and workspace orchestration)
+- **TypeScript Project References** (Cross-package type checking)
+- **ESLint & Prettier** (Code quality and formatting across packages)
+
+#### **Styling & UI Components**
+- **Tailwind CSS** (Web styling)
+- **NativeWind** (Tailwind for React Native)
+- **Shadcn/UI** (Web component library)
+- **React Native Elements/Paper** (Mobile component library)
+- **Expo Vector Icons** (Cross-platform iconography)
+
+#### **Backend & Database**
+- **Supabase** (Database, authentication, real-time subscriptions, storage)
+- **PostgreSQL** (Database engine via Supabase)
+- **Row Level Security** (Database-level authorization)
+
+#### **State Management & Data Flow**
+- **Zustand** (Lightweight state management)
+- **React Query/TanStack Query** (Server state management and caching)
+- **Supabase Realtime** (Live data synchronization)
+
+#### **Testing & Quality Assurance**
+- **Jest** (Unit testing framework)
+- **React Testing Library** (Component testing)
+- **Detox** (Mobile end-to-end testing)
+- **Storybook** (Component development and documentation)
+
+#### **Data Visualization**
+- **Tremor** (Web dashboard charts and analytics)
+- **React Native Chart Kit** (Mobile data visualization)
+- **Victory Native** (Advanced mobile charting)
 
 ### 🏗️ Project Architecture
 
