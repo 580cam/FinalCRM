@@ -4,7 +4,15 @@
       "mcp__Ref__ref_search_documentation",
       "mcp__Ref__ref_read_url",
       "Bash(find:*)",
-      "WebFetch(domain:developers.bannerbear.com)"
+      "WebFetch(domain:developers.bannerbear.com)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(gh repo list:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(gh repo set-default:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(gh repo sync:*)"
     ],
     "deny": []
   }
