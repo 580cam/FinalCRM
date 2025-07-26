@@ -1,8 +1,8 @@
 ## FEATURE:
 
-### Cross-Platform CRM with Monorepo Architecture
+### Complete Moving Company Ecosystem with Monorepo Architecture
 
-This moving company CRM is designed from the ground up as a **cross-platform application** using a **monorepo architecture** to support both web and mobile experiences with maximum code sharing.
+This is a comprehensive **4-application ecosystem** for a moving company, built using a **monorepo architecture** to maximize code sharing and maintain consistency across all customer and operational touchpoints.
 
 #### **Architecture Overview:**
 ```
@@ -13,31 +13,76 @@ packages/
 │   ├── hooks/       # Custom React hooks
 │   ├── stores/      # State management & real-time subscriptions
 │   └── types/       # TypeScript definitions & database schemas
-├── web/             # Next.js web application (UI layer)
-├── mobile/          # Expo mobile application (UI layer)
+├── website/         # Marketing website (Next.js) - Customer-facing
+├── crm-web/         # CRM web application (Next.js) - Management interface
+├── crm-mobile/      # CRM mobile app (Expo) - Management on-the-go
+├── crew-mobile/     # Crew mobile app (Expo) - Field operations
 └── components/      # Shared component logic
 ```
 
+#### **The 4 Applications:**
+
+**1. Marketing Website** (`packages/website/`)
+- **Purpose**: Customer-facing marketing site for the moving company
+- **Features**: 
+  - Static marketing pages with company information
+  - Custom instant quote calculator with dynamic pricing
+  - Online booking system with date/time selection
+  - Yembo AI integration for visual inventory estimates
+  - Lead capture forms with automated CRM integration
+  - Service area coverage and pricing information
+- **Technology**: Next.js with static generation, integrated with shared pricing logic
+
+**2. CRM Web Application** (`packages/crm-web/`)
+- **Purpose**: Comprehensive business management system for office staff
+- **Features**:
+  - Complete lead and customer management
+  - Quote generation and approval workflows
+  - Scheduling and dispatch management
+  - Financial reporting and invoice generation
+  - Team management and role-based access
+  - Advanced analytics and business intelligence
+  - Integration hub for all third-party services
+- **Technology**: Next.js with full CRM functionality, advanced data visualization
+
+**3. CRM Mobile App** (`packages/crm-mobile/`)
+- **Purpose**: Full CRM access for managers and sales staff on mobile
+- **Features**:
+  - Complete feature parity with web CRM
+  - Mobile-optimized interface for touch interaction
+  - Push notifications for important updates
+  - Offline capability for core functions
+  - Camera integration for document capture
+  - GPS integration for location-based features
+- **Technology**: Expo/React Native with native mobile capabilities
+
+**4. Crew Mobile App** (`packages/crew-mobile/`)
+- **Purpose**: Specialized app for field crews and movers
+- **Features**:
+  - Job details and customer information
+  - Crew availability confirmation and scheduling
+  - Real-time job status updates (loading, in-transit, unloading)
+  - Dynamic charge modifications and material adjustments
+  - Address updates and route optimization
+  - Customer signature capture and payment processing
+  - Photo documentation for damage claims
+  - Time tracking and crew check-in/check-out
+- **Technology**: Expo/React Native with field-specific mobile features
+
 #### **Key Benefits:**
-- **Write Once, Deploy Everywhere**: Business logic, API integrations, and data models work identically across web and mobile
-- **Consistent Experience**: Same validation rules, calculations, and real-time sync across all platforms
-- **Faster Development**: New features automatically work on both platforms
-- **Mobile-First Moving Operations**: Field crews use mobile apps, office staff use web dashboard
-- **Real-Time Sync**: Live updates between all users regardless of platform
+- **80%+ Code Sharing**: All business logic, pricing calculations, API integrations, and data models shared across all 4 applications
+- **Consistent Experience**: Same validation rules, calculations, and real-time sync from customer website to crew app
+- **Unified Data Flow**: Real-time updates between marketing leads, CRM management, and field operations
+- **Complete Customer Journey**: Seamless handoff from website quote to CRM management to crew execution
+- **Operational Efficiency**: Field crews, managers, and customers all use the same underlying business logic
+- **Faster Development**: New features and integrations automatically work across all applications
 
-#### **Platform-Specific Features:**
-**Web Dashboard (Next.js):**
-- Comprehensive admin interface with advanced reporting
-- Complex data visualization with Tremor charts
-- Multi-window workflow management
-- Advanced filtering and bulk operations
-
-**Mobile App (Expo):**
-- On-site estimate creation with camera integration
-- GPS tracking and route optimization
-- Offline-capable lead capture
-- Voice-to-text note taking
-- Crew dispatch and real-time updates
+#### **Shared Business Logic Examples:**
+- **Pricing Engine**: Same calculation logic used in marketing quotes, CRM estimates, and crew charge modifications
+- **Address Validation**: Google Places integration works identically in website forms, CRM, and crew apps
+- **User Authentication**: Single sign-on and role-based access across all applications
+- **Real-Time Sync**: Job updates from crew app instantly appear in CRM and customer notifications
+- **Payment Processing**: Stripe integration handles payments from website bookings to crew-collected charges
 
 #### **Shared Integrations:**
 All third-party services work seamlessly across platforms:
@@ -50,10 +95,20 @@ All third-party services work seamlessly across platforms:
 - **Marketing APIs**: Lead generation and campaign management
 
 #### **Development Approach:**
-1. **Shared Logic First**: Build business rules, API clients, and data models in shared packages
-2. **UI Layer Implementation**: Create platform-specific interfaces that consume shared logic
-3. **Feature Parity**: Ensure core functionality works across all platforms
-4. **Platform Optimization**: Leverage platform-specific capabilities where beneficial
+1. **Shared Logic First**: Build all business rules, pricing calculations, API clients, and data models in `packages/shared/`
+2. **UI Layer Implementation**: Create application-specific interfaces that consume shared logic:
+   - Marketing website: Customer-focused, conversion-optimized interfaces
+   - CRM web: Complex management interfaces with advanced data visualization
+   - CRM mobile: Touch-optimized versions of CRM functionality
+   - Crew mobile: Field-optimized interfaces for operational efficiency
+3. **Cross-Application Features**: Ensure workflows span multiple applications (e.g., website lead → CRM management → crew execution)
+4. **Role-Based Access**: Implement proper permissions so each application shows appropriate functionality for its users
+5. **Real-Time Coordination**: Maintain live sync between all applications for operational efficiency
+
+#### **User Journey Integration:**
+**Customer Path**: Marketing Website → Online Booking → CRM Lead Management → Crew Execution
+**Business Path**: Lead Generation → Sales Management → Operations Coordination → Service Delivery
+**Data Flow**: Single source of truth with real-time updates across all touchpoints
 
 ## EXAMPLES:
 
