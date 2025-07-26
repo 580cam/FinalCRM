@@ -1,6 +1,59 @@
 ## FEATURE:
 
-[Insert your feature here]
+### Cross-Platform CRM with Monorepo Architecture
+
+This moving company CRM is designed from the ground up as a **cross-platform application** using a **monorepo architecture** to support both web and mobile experiences with maximum code sharing.
+
+#### **Architecture Overview:**
+```
+packages/
+├── shared/           # Business logic & integrations (80%+ of codebase)
+│   ├── api/         # Supabase clients, all API integrations
+│   ├── utils/       # Business utilities (pricing, estimation, formatting)
+│   ├── hooks/       # Custom React hooks
+│   ├── stores/      # State management & real-time subscriptions
+│   └── types/       # TypeScript definitions & database schemas
+├── web/             # Next.js web application (UI layer)
+├── mobile/          # Expo mobile application (UI layer)
+└── components/      # Shared component logic
+```
+
+#### **Key Benefits:**
+- **Write Once, Deploy Everywhere**: Business logic, API integrations, and data models work identically across web and mobile
+- **Consistent Experience**: Same validation rules, calculations, and real-time sync across all platforms
+- **Faster Development**: New features automatically work on both platforms
+- **Mobile-First Moving Operations**: Field crews use mobile apps, office staff use web dashboard
+- **Real-Time Sync**: Live updates between all users regardless of platform
+
+#### **Platform-Specific Features:**
+**Web Dashboard (Next.js):**
+- Comprehensive admin interface with advanced reporting
+- Complex data visualization with Tremor charts
+- Multi-window workflow management
+- Advanced filtering and bulk operations
+
+**Mobile App (Expo):**
+- On-site estimate creation with camera integration
+- GPS tracking and route optimization
+- Offline-capable lead capture
+- Voice-to-text note taking
+- Crew dispatch and real-time updates
+
+#### **Shared Integrations:**
+All third-party services work seamlessly across platforms:
+- **Supabase**: Database, auth, real-time subscriptions
+- **Stripe**: Payment processing for both web and mobile
+- **Google Maps**: Distance calculations and route optimization
+- **Twilio**: Voice calls and SMS messaging
+- **Yembo AI**: Visual inventory assessment
+- **Voice AI**: Customer service automation
+- **Marketing APIs**: Lead generation and campaign management
+
+#### **Development Approach:**
+1. **Shared Logic First**: Build business rules, API clients, and data models in shared packages
+2. **UI Layer Implementation**: Create platform-specific interfaces that consume shared logic
+3. **Feature Parity**: Ensure core functionality works across all platforms
+4. **Platform Optimization**: Leverage platform-specific capabilities where beneficial
 
 ## EXAMPLES:
 

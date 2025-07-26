@@ -178,6 +178,42 @@
 - **Supabase** (including OAuth and realtime)
 - **Tremor** for data visualization
 
+### 🏗️ Project Architecture
+
+**Cross-Platform Monorepo Structure**
+This project uses a monorepo architecture designed for both web and mobile deployment:
+
+```
+packages/
+├── shared/           # Core business logic (80%+ of codebase)
+│   ├── api/         # Supabase clients & API integrations
+│   ├── utils/       # Business utilities & calculations
+│   ├── hooks/       # Shared React hooks
+│   ├── stores/      # State management & real-time sync
+│   └── types/       # TypeScript definitions
+├── web/             # Next.js application (UI only)
+├── mobile/          # Expo application (UI only)
+└── components/      # Shared component logic
+```
+
+**Development Principles:**
+- **Shared-First Development**: Always implement business logic in shared packages first
+- **Platform UI Layers**: Web and mobile apps are thin UI layers consuming shared logic
+- **Consistent Behavior**: Same validation, calculations, and data flow across all platforms
+- **Real-Time Sync**: Supabase subscriptions work identically on web and mobile
+- **Code Reuse**: 80%+ of codebase shared between platforms
+
+**When building features:**
+1. Implement business logic in `packages/shared/`
+2. Create web UI in `packages/web/` using Next.js + Shadcn/UI
+3. Create mobile UI in `packages/mobile/` using Expo + React Native
+4. Ensure feature parity and consistent user experience
+
+**Platform-Specific Considerations:**
+- **Web**: Advanced reporting, complex data visualization, multi-window workflows
+- **Mobile**: GPS integration, camera functionality, offline capability, voice input
+- **Shared**: All business rules, API calls, data models, and real-time subscriptions
+
 ### 📝 Naming Conventions
 - **Use lowercase with dashes** for directories (e.g., `components/form-wizard`).
 - **Favor named exports** for components and utilities.
