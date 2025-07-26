@@ -157,7 +157,7 @@ export default function CreateOpportunityModal({
   });
 
   const modalRef = useRef<HTMLDivElement>(null)
-  const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || 'AIzaSyBkgqL9hXnA8DIzK0Xi-S1pgLg2BZrOyc8'
+  const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || ''
   
   // Keep track of Google Places status
   const handleGooglePlacesInteraction = (isOpen: boolean) => {

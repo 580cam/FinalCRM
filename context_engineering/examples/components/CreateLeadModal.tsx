@@ -143,7 +143,7 @@ export default function CreateLeadModal({
 
   const [salesPeople, setSalesPeople] = useState<User[]>([])
   const [isLoadingSalesPeople, setIsLoadingSalesPeople] = useState(true)
-  const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || 'AIzaSyBkgqL9hXnA8DIzK0Xi-S1pgLg2BZrOyc8'
+  const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || ''
   
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
