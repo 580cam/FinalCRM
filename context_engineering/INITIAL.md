@@ -45,6 +45,25 @@ packages/
   - Integration hub for all third-party services
 - **Technology**: Next.js with full CRM functionality, advanced data visualization
 
+- **Interface Structure**:
+  - **Header**: 
+    - Company logo (top left)
+    - Right-side controls: notifications, inbox, search
+    - Quick-add dropdown (+): new lead, new opportunity, new task, new follow-up
+    - Profile dropdown: account settings, logout
+  - **Sidebar Navigation**:
+    - Dashboard (role-based overview)
+    - Calendar (comprehensive scheduling view)
+    - Tasks (task management)
+    - Leads (lead pipeline management)
+    - Customers (customer relationship management)
+    - Dispatch (crew and resource coordination)
+    - Customer Service (support and claims)
+    - Marketing (campaign management)
+    - Accounting (financial operations)
+    - Reports (analytics and insights)
+    - Settings (system configuration)
+
 **3. CRM Mobile App** (`packages/crm-mobile/`)
 - **Purpose**: Full CRM access for managers and sales staff on mobile
 - **Features**:
@@ -109,6 +128,397 @@ All third-party services work seamlessly across platforms:
 **Customer Path**: Marketing Website → Online Booking → CRM Lead Management → Crew Execution
 **Business Path**: Lead Generation → Sales Management → Operations Coordination → Service Delivery
 **Data Flow**: Single source of truth with real-time updates across all touchpoints
+
+#### **Lead Flow & Status Management:**
+
+**Lead Entry Points:**
+1. **Website Quote Form** → **Opportunity** (when instant quote provided) OR **Lead** (when manual quote needed)
+2. **Phone Calls** → **Lead** (until quote is generated)
+3. **External Sources** (referrals, Thumbtack, etc.) → **Lead** (until quote is generated)
+
+**Status Progression Flow:**
+
+**Hot Lead** (5-minute auto-downgrade via cron job) → **Lead** → **Opportunity** → **Booked** → **Confirmed** → **Complete** → **Reviewed**
+
+**Database Creation Logic:**
+- **Lead Creation**: Creates `lead` record with status `'lead'`
+- **Opportunity Creation**: Creates `lead` + `quote` + `job` records simultaneously, with quote status `'opportunity'`
+
+**Quote/Opportunity Status Workflow:**
+- **Lead**: No estimate available, restricted access until quote completion
+- **Opportunity**: Has estimate/quote, ready for customer review
+- **Booked**: Customer/staff pressed book button or online booking completed
+- **Confirmed**: Day-before confirmation process completed, crew/resources allocated
+- **Complete**: Job finished, ready for review collection
+- **Reviewed**: Customer feedback collected, job fully closed
+
+**Job Execution Status Workflow:**
+- **En Route**: Crew dispatched to pickup location
+- **Arrived**: Crew arrived at pickup location
+- **Loading**: Actively loading customer belongings
+- **Finished Loading**: Loading complete, ready for transport
+- **Unloading**: Actively unloading at destination
+- **Finished Job**: All work completed, final charges processed
+
+**Multi-Stop Jobs**: Additional status tracking for complex moves with multiple pickup/delivery locations
+
+#### **Database Architecture & Charge Tracking:**
+
+**Hierarchical Data Structure:**
+```
+Lead (customer contact info)
+├── Quotes (multiple estimates per lead)
+│   ├── Status (held at quote level for multi-quote scenarios)
+│   └── Jobs (multiple jobs per quote for multi-day/long-term projects)
+│       ├── Job Addresses (pickup/delivery locations)
+│       ├── Job Charges (detailed pricing breakdown)
+│       ├── Job Schedule (timing and appointments)
+│       └── Crews (assigned teams)
+│           ├── Movers (individual crew members)
+│           └── Trucks (assigned vehicles)
+```
+
+**Charge Tracking System:**
+All pricing data uses a comprehensive tracking structure to maintain estimate integrity and sales override visibility:
+
+```json
+{
+  "unit": "workers",
+  "value": 7,
+  "actualValue": null,
+  "initialValue": 7,
+  "isOverridden": false,
+  "estimatedValue": 7
+}
+```
+
+**Charge Tracking Fields:**
+- **`initialValue`**: Original calculated estimate
+- **`estimatedValue`**: Current estimated value (may be adjusted)
+- **`value`**: Current working value (displayed to customer)
+- **`actualValue`**: Final executed value (filled during job completion)
+- **`isOverridden`**: Flag indicating sales/manager manual adjustment
+- **`unit`**: Measurement unit (workers, hours, miles, items, etc.)
+
+**Job Charges Table Structure:**
+All charges stored as JSONB with full tracking history:
+- `amount`, `hourly_rate`, `hours`, `number_of_crew`, `number_of_trucks`
+- `driving_time_mins`, `fuel_cost`, `milage_cost`, `item_cost`, `item_quantity`
+- `origin_handicaps`, `destination_handicaps`, `stops_handicaps`
+- `minimum_time`, `custom_name`, `custom_price`, `is_billable`, `tips`
+
+This structure enables:
+- **Estimate Accuracy Tracking**: Compare initial vs actual values
+- **Sales Override Visibility**: Clear audit trail of manual adjustments
+- **Real-time Updates**: Changes sync across all 4 applications
+- **Historical Analysis**: Track pricing accuracy and improvement opportunities
+
+#### **Estimation System & Pricing Engine:**
+
+**Move Size to Cubic Feet Mapping:**
+```javascript
+export const MOVE_SIZE_CUFT = {
+  "Room or Less": 75,
+  "Studio Apartment": 288,
+  "1 Bedroom Apartment": 432,
+  "2 Bedroom Apartment": 743,
+  "3 Bedroom Apartment": 1296,
+  "1 Bedroom House": 576,
+  "1 Bedroom House (Large)": 720,
+  "2 Bedroom House": 1008,
+  "2 Bedroom House (Large)": 1152,
+  "3 Bedroom House": 1440,
+  "3 Bedroom House (Large)": 1584,
+  "4 Bedroom House": 1872,
+  "4 Bedroom House (Large)": 2016,
+  "5 Bedroom House": 3168,
+  "5 Bedroom House (Large)": 3816,
+  "5 x 10 Storage Unit": 400,
+  "5 x 15 Storage Unit": 600,
+  "10 x 10 Storage Unit": 800,
+  "10 x 15 Storage Unit": 1200,
+  "10 x 20 Storage Unit": 1600,
+  "Office (Small)": 1000,
+  "Office (Medium)": 2000,
+  "Office (Large)": 3000
+};
+```
+
+**Service Tier Speed Logic:**
+| Service Type   | Cuft/hr/mover |
+|----------------|---------------|
+| Grab-n-Go      | 95            |
+| Full Service   | 80            |
+| White Glove    | 70            |
+| Labor Only     | 90            |
+
+**Crew Size Determination (Based on Cubic Feet):**
+```javascript
+export const CREW_SIZE_BY_CUBIC_FEET = [
+  { max: 1009, movers: 2 },
+  { max: 1500, movers: 3 },
+  { max: 2000, movers: 4 },
+  { max: 3200, movers: 5 },
+  { max: Infinity, movers: 6 }
+];
+```
+
+**Handicap Modifiers (only applies if cuft ≥ 400):**
+| Handicap Type      | Modifier (%) | Rule      |
+|--------------------|--------------|-----------|
+| Each flight stairs | +9%          | Additive  |
+| Each 100ft walk    | +9%          | Additive  |
+| Elevator           | +18%         | Flat      |
+
+Formula: `modifier = 1 + (stair * 0.09) + (walkFt / 100 * 0.09) + (elevator ? 0.18 : 0)`
+
+**Base Time Calculation:**
+```
+baseTime = cuft / (crewCount * serviceSpeed) * handicapModifier
+```
+
+**Crew Adjustment Rules (WIP — thresholds subject to tuning):**
+- Start with cuft-based crew size from table above
+- Add movers based on handicap % thresholds (only if cuft ≥ 400):
+
+| Cuft Band      | Add 1st Extra Mover | Add 2nd Extra Mover    |
+|----------------|---------------------|------------------------|
+| < 300 cuft     | +36% handicap       | +36% more (total 72%)  |
+| 300–599 cuft   | +27% handicap       | +27% more (total 54%)  |
+| ≥ 600 cuft     | +18% handicap       | +18% more (total 36%)  |
+
+**Logic Flow:**
+1. Determine base crew size from cubic feet
+2. Calculate total handicap percentage
+3. Determine cuft band  
+4. Add movers when handicap crosses each band's threshold(s)
+5. Calculate final time with adjusted crew
+6. Manual overrides available in job charges for dispatch flexibility
+
+**Day-Split Logic by Distance:**
+
+**LOCAL MOVES (≤ 30 miles):**
+
+*Single-Service – Packing/Unpacking Only:*
+1. Estimate time from box algorithm
+2. If total ≤ 9 hrs → keep crew, no split
+3. If > 9 hrs → split into 2 days (Pack Day-1, Unpack Day-2 if needed)
+
+*Single-Service – Moving, Labor, Junk Removal:*
+1. Crew/time determined by cuft & handicap rules
+2. If total time > 9 hrs after crew calculation → split into Load Day-1 / Unload Day-2
+
+*Two-Service (Moving + Packing, Moving + Unpacking, etc.):*
+1. Start with calculated crew
+2. Add 1 mover to attempt single-day
+3. If combined services fit ≤ 9 hrs → keep added mover
+4. Otherwise: remove extra mover and split:
+   - Pack Day-1 (crew − 1)
+   - Move Day-2 (base crew)
+
+*Three-Service (Full Service, White Glove):*
+1. Attempt with base crew + 1 for single-day (≤ 9 hrs)
+2. If not possible:
+   - Remove extra mover
+   - Split into 3-day flow: Pack Day-1 (crew − 1) / Move Day-2 (base crew) / Unpack Day-3 (crew − 1)
+
+**REGIONAL MOVES (30–120 miles):**
+
+*Single-Day Regional (when possible):*
+1. Calculate total time: all services + drive time
+2. If total ≤ 14 hrs (DOT limit) → complete in one day
+3. Services can be reduced (moving only, no pack/unpack) to fit single day
+
+*Standard 2-Day Regional:*
+1. Day-1: Pack + Load (complete at origin)
+2. Crew returns home/local accommodation
+3. Day-2: Early morning departure → Drive → Unload + Unpack → Return same day
+
+*Large Regional (3-4 Day Split for oversized moves):*
+1. Day-1: Pack only
+2. Day-2: Load only
+3. Day-3: Drive + Unload
+4. Day-4: Unpack (if needed)
+
+*Key Points:*
+- Attempt single-day first if time permits (≤14 hrs total)
+- Can reduce services (skip pack/unpack) to fit one day
+- No overnight stays at customer location
+- Crew stays locally between service days
+- Early departure Day-2 for reasonable arrival time
+
+#### **Pricing Structure:**
+
+**Base Hourly Rates by Service & Crew Size:**
+```javascript
+export const BASE_HOURLY_RATES: { [service in ServiceType]?: { [crewSize: number]: number } } = {
+  "Moving": { 2: 169, 3: 229, 4: 289, 5: 349, 6: 409, 7: 469 },
+  "Packing": { 2: 169, 3: 229, 4: 289, 5: 349, 6: 409, 7: 469 },
+  "Unpacking": { 2: 169, 3: 229, 4: 289, 5: 349, 6: 409, 7: 469 },
+  "Moving and Packing": { 2: 169, 3: 229, 4: 289, 5: 349, 6: 409, 7: 469 },
+  "Full Service": { 2: 169, 3: 229, 4: 289, 5: 349, 6: 409, 7: 469 },
+  "White Glove": { 2: 199, 3: 274, 4: 349, 5: 424, 6: 499, 7: 574 },
+  "Load Only": { 2: 129, 3: 189, 4: 249, 5: 309, 6: 369, 7: 429 },
+  "Unload Only": { 2: 129, 3: 189, 4: 249, 5: 309, 6: 369, 7: 429 },
+  "Labor Only": { 2: 129, 3: 189, 4: 249, 5: 309, 6: 369, 7: 429 },
+  "Staging": { 2: 129, 3: 189, 4: 249, 5: 309, 6: 369, 7: 429 },
+  "Commercial": { 2: 169, 3: 229, 4: 289, 5: 349, 6: 409, 7: 469 }
+};
+```
+
+**Additional Mover & Truck Rates:**
+```javascript
+export const ADDITIONAL_MOVER_RATES: { [service in ServiceType]?: number } = {
+  "Moving": 60, "Packing": 60, "Unpacking": 60, "Moving and Packing": 60,
+  "Full Service": 60, "White Glove": 75, "Load Only": 60, "Unload Only": 60,
+  "Labor Only": 60, "Staging": 60, "Commercial": 60
+};
+
+export const ADDITIONAL_RATES = {
+  FUEL_RATE_PER_MILE: 2.00,        // Fuel surcharge per mile for long distance
+  MILEAGE_RATE_PER_MILE: 4.29,     // Mileage fee per mile for long distance  
+  ADDITIONAL_TRUCK_HOURLY: 30       // Additional truck hourly rate (every 1500 cuft)
+};
+```
+
+**Drive Time & Mileage Logic:**
+- **Under 30 miles**: Charge drive time, no gas/mileage fees
+- **Over 30 miles**: No drive time charge, but $4.29/mile + $2.00/mile gas fees
+
+**Specialty Item Charges (Risk-Based Tiers):**
+| Item Type | Price | Requirements |
+|-----------|--------|-------------|
+| **Tier 1 ($150)** | Upright/Console Pianos, Gun Safe < 350 lbs | Standard handling, straps, dolly, 2-3 men |
+| **Tier 2 ($250)** | Gun Safe 350-500 lbs, Baby Grand Pianos, Oversized Items | Requires 3+ men, special bracing/dolly |
+| **Tier 3 ($350)** | Gun Safe 500+ lbs, Grand Pianos, Hot Tubs, Large Machines | Piano board, safe dolly, moving sled, highest risk |
+
+**Junk Removal (Fixed Pricing):**
+| Load Size | Price |
+|-----------|--------|
+| Single Item Pickup | $150 |
+| 25% Load | $260 |
+| 50% Load | $475 |
+| 75% Load | $695 |
+| Full Load | $1000 |
+
+**Storage Rates:**
+- **Short-term** (overnight < 1 week): $150/night
+- **Long-term** (monthly): $450/month
+
+**Packing Materials (Purchase Prices):**
+
+*Standard Boxes:*
+- Small box: $1.85, Medium box: $2.66, Large box: $3.33, Extra large box: $4.68
+- Wardrobe box: $29.03
+
+*Specialty Boxes:*
+- Medium TV box: $27.34, Large TV box: $40.49, Extra large TV box: $53.93
+- Lamp box: $8.03, Mirror box: $9.38, Large mirror box: $11.14
+- 4-way mirror box: $13.43, Dish pack: $10.94
+
+*Protection Materials:*
+- Twin mattress bag: $10.73, Full mattress bag: $11.46
+- Queen mattress bag: $12.49, King mattress bag: $13.43
+- Skin blanket: $12.00, Paper pad: $4.59
+
+**TV Box Rentals:** All TV boxes available at 50% of purchase price
+
+#### **Box Estimation System:**
+
+**Supported Move Sizes (Complete List):**
+```javascript
+export const MOVE_SIZE_CUFT = {
+  "Room or Less": 75,
+  "Studio Apartment": 288,
+  "1 Bedroom Apartment": 432,
+  "2 Bedroom Apartment": 743,
+  "3 Bedroom Apartment": 1296,
+  "1 Bedroom House": 576,
+  "1 Bedroom House (Large)": 720,
+  "2 Bedroom House": 1008,
+  "2 Bedroom House (Large)": 1152,
+  "3 Bedroom House": 1440,
+  "3 Bedroom House (Large)": 1584,
+  "4 Bedroom House": 1872,
+  "4 Bedroom House (Large)": 2016,
+  "5 Bedroom House": 3168,
+  "5 Bedroom House (Large)": 3816,
+  "5 x 10 Storage Unit": 400,
+  "5 x 15 Storage Unit": 600,
+  "10 x 10 Storage Unit": 800,
+  "10 x 15 Storage Unit": 1200,
+  "10 x 20 Storage Unit": 1600,
+  "Office (Small)": 1000,
+  "Office (Medium)": 2000,
+  "Office (Large)": 3000
+};
+```
+
+**Packing Intensity Levels:**
+- **Less than Normal**: 0.75x multiplier (minimal belongings)
+- **Normal**: 1.0x multiplier (standard household)
+- **More than Normal**: 1.5x multiplier (extensive belongings)
+
+**Box Estimation Logic:**
+
+*Room-Based Calculation by Property Type:*
+
+**Apartment** (Basic rooms + bedrooms):
+- Base rooms: Living room, kitchen
+- Bedrooms added dynamically (0-5 bedrooms)
+
+**Normal Home** (Standard house rooms + bedrooms):
+- Base rooms: Living room, kitchen, dining room, garage
+- Bedrooms added dynamically (1-5 bedrooms)
+
+**Large Home** (Full house with all spaces + bedrooms):
+- Base rooms: Living room, kitchen, dining room, garage, office, patio/shed, attic/basement
+- Bedrooms added dynamically (1-5 bedrooms)
+
+*Per-Room Box Allocation:*
+- **Bedroom**: 4 small, 6 medium, 2 large, 2 wardrobe, 1 dish pack, 1 mattress bag, 1 TV box
+- **Living Room**: 3 small, 5 medium, 3 large, 1 wardrobe, 1 dish pack, 1 TV box
+- **Kitchen**: 4 small, 6 medium, 2 large, 3 dish pack
+- **Dining Room**: 2 small, 3 medium, 2 large, 1 dish pack
+- **Garage**: 5 small, 7 medium, 3 large, 1 dish pack
+- **Office**: 3 small, 4 medium, 2 large, 1 dish pack, 1 TV box
+- **Patio/Shed**: 2 small, 3 medium, 3 large, 1 dish pack
+- **Attic/Basement**: 3 small, 5 medium, 3 large, 1 dish pack
+
+*Fixed Estimates (Studios, Offices, Storage Units):*
+- Predefined box counts based on space size and typical contents
+- No room-by-room calculation needed
+
+**Time Calculation (Minutes per Box per Worker):**
+
+*Packing Time:*
+- Small: 5 min, Medium: 7 min, Large: 9 min, Wardrobe: 10 min
+- Dish Pack: 14 min, Mattress Bag: 5 min, TV Box: 6 min
+- Extra time per room: 15 min (wrapping, labeling, setup)
+
+*Unpacking Time:*
+- Small: 4 min, Medium: 6 min, Large: 8 min, Wardrobe: 8 min  
+- Dish Pack: 12 min, Mattress Bag: 4 min, TV Box: 5 min
+- Extra time per room: 15 min (setup, disposal, organization)
+
+**White Glove Service**: +20% time modifier for extra care and detail
+
+**Material Cost Integration**: Automatically calculates total material costs based on estimated box quantities and current pricing
+
+**LONG-DISTANCE MOVES (301–500 miles):**
+1. Attempt Single-Day Load-Drive-Unload within 14-hour DOT duty window
+2. If single-day fails → Default 2-Day Sequence:
+   - Day-1: Pack (crew − 1)
+   - Day-2: Load + Drive (+ Unload if fits <14 hr, else schedule Day-3 Unload)
+3. Unpack Handling: If Unpack pushes Day-3 beyond 9 hr → schedule Day-4 Unpack (crew − 1)
+4. Overnight Costs: Each overnight leg flags hotel/per-diem
+
+**CROSS-COUNTRY MOVES (> 500 miles):**
+1. Day-1: Pack (crew − 1)
+2. Day-2: Load + Depart
+3. Drive Legs: Max 11 hr drive per day + breaks, overnight each leg with hotel/per-diem
+4. Final Leg: Unload when arrival + unload fit within 14 hr window
+5. Return Trip: Drive back to HQ with same DOT limits, crew marked unavailable until return
 
 ## EXAMPLES:
 
