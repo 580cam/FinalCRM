@@ -58,10 +58,12 @@ packages/
     - Leads (lead pipeline management)
     - Customers (customer relationship management)
     - Dispatch (crew and resource coordination)
+    - Fleet & Inventory (asset and resource management)
     - Customer Service (support and claims)
     - Marketing (campaign management)
     - Accounting (financial operations)
     - Reports (analytics and insights)
+    - HR & Hiring (recruitment and applicant tracking)
     - Settings (system configuration)
 
 **3. CRM Mobile App** (`packages/crm-mobile/`)
@@ -377,13 +379,41 @@ export const ADDITIONAL_MOVER_RATES: { [service in ServiceType]?: number } = {
 export const ADDITIONAL_RATES = {
   FUEL_RATE_PER_MILE: 2.00,        // Fuel surcharge per mile for long distance
   MILEAGE_RATE_PER_MILE: 4.29,     // Mileage fee per mile for long distance  
-  ADDITIONAL_TRUCK_HOURLY: 30       // Additional truck hourly rate (every 1500 cuft)
+  ADDITIONAL_TRUCK_HOURLY: 30,      // Additional truck hourly rate (every 1500 cuft)
+  EMERGENCY_SERVICE_HOURLY: 30      // Emergency service surcharge (within 24 hours)
 };
 ```
 
 **Drive Time & Mileage Logic:**
 - **Under 30 miles**: Charge drive time, no gas/mileage fees
 - **Over 30 miles**: No drive time charge, but $4.29/mile + $2.00/mile gas fees
+
+**Emergency Service Surcharge:**
+- **Within 24 hours**: +$30/hour for all crew members (urgent scheduling premium)
+
+**Valuation Insurance (WIP - Future Implementation):**
+- **Status**: Not currently implemented - pending insurance provider setup
+- **Pricing Structure**: TBD - rates will be determined once insurance partnerships are established
+- **Implementation Notes**: 
+  - Will offer multiple coverage tiers (basic, standard, full replacement)
+  - Pricing likely based on declared value or cubic feet
+  - Integration required with insurance provider API
+  - Customer opt-in/opt-out functionality needed
+  - Claims process workflow to be defined
+
+**Custom Crating Services:**
+- **Pricing**: Case-by-case basis (custom quote required)
+- **Items**: Fragile artwork, antiques, high-value electronics, custom furniture
+- **Process**: On-site assessment required for accurate pricing
+
+**Cancellation & Rescheduling Policies (WIP - Future Implementation):**
+- **Same-Day Cancellation Fee**: TBD - penalty for cancelling on move day
+- **24-Hour Rescheduling Fee**: TBD - fee for rescheduling within 24 hours
+- **Deposit System**: TBD - potential deposit requirement to secure booking
+- **Implementation Notes**:
+  - Policies need to be clearly communicated during booking
+  - Integration with scheduling system for automated fee calculation
+  - Refund/credit processing workflow required
 
 **Specialty Item Charges (Risk-Based Tiers):**
 | Item Type | Price | Requirements |
@@ -504,6 +534,1234 @@ export const MOVE_SIZE_CUFT = {
 **White Glove Service**: +20% time modifier for extra care and detail
 
 **Material Cost Integration**: Automatically calculates total material costs based on estimated box quantities and current pricing
+
+#### **Dashboard & Real-Time Business Overview:**
+
+**Core Philosophy**: The entire 4-application ecosystem operates in **real-time** - no screen, system, or app is ever behind. Every action across website, CRM web, CRM mobile, and crew mobile instantly syncs across all platforms.
+
+**Dashboard Purpose**: Main command center providing complete business pulse in one view for ownership and management oversight.
+
+**Real-Time Activity Log (Business-Level)**:
+Live feed of all major business activities:
+- New leads received (source, contact info, estimated value)
+- Quotes generated and sent to customers
+- Jobs booked and confirmed
+- Crew assignments and dispatch notifications
+- Jobs completed and status updates
+- Customer reviews received
+- Payment processing and collections
+- Emergency service requests
+- Cancellations and rescheduling
+
+**Customer-Level Audit Trail (Individual Records)**:
+Complete historical record for each customer showing every action:
+- Quote generated/modified/sent
+- Quote re-rated (pricing adjustments)
+- Inventory items added/removed/modified
+- Charges added/removed/adjusted
+- Addresses added/changed/verified
+- Service dates changed/confirmed
+- Crew assignments/reassignments
+- Payment transactions/refunds
+- Communication log (calls, emails, texts)
+- Review submissions and responses
+- Insurance claims and resolutions
+
+**Key Performance Indicators (KPIs)**:
+
+*Daily/Weekly Metrics:*
+- New leads received (by source)
+- Lead-to-opportunity conversion rate
+- Opportunity-to-booking conversion rate
+- Jobs completed vs scheduled
+- Average job value and profit margins
+- Customer satisfaction scores
+- Crew utilization rates
+- Revenue vs targets
+
+*Monthly Business Health:*
+- Total moves booked and completed
+- Monthly recurring revenue (MRR)
+- Customer acquisition cost (CAC)
+- Customer lifetime value (CLV)
+- Seasonal trend analysis
+- Market share and competitive positioning
+- Operational efficiency metrics
+
+*Financial Dashboard:*
+- Daily/weekly/monthly revenue
+- Outstanding invoices and collections
+- Cash flow projections
+- Cost per acquisition by marketing channel
+- Profit margins by service type
+- Emergency service premium revenue
+
+*Operational Metrics:*
+- Crew availability and scheduling efficiency
+- Vehicle utilization rates
+- Material inventory levels and costs
+- Service area expansion opportunities
+- Average job duration vs estimates
+
+**Real-Time Notification System**:
+- High-priority alerts (emergency bookings, crew issues, customer complaints)
+- Business milestone notifications (daily/monthly targets hit)
+- System health and integration status
+- Competitive intelligence and market updates
+
+**Role-Based Dashboard Views**:
+- **Owner/Executive**: High-level KPIs, financial performance, strategic metrics
+- **Operations Manager**: Crew scheduling, job progress, resource allocation
+- **Sales Manager**: Lead pipeline, conversion rates, booking targets
+- **Customer Service**: Active issues, review responses, communication queue
+
+#### **Calendar System:**
+
+**Purpose**: Comprehensive scheduling overview with role-based access and visibility controls. Primary function is **viewing and coordination** rather than direct scheduling modifications.
+
+**Role-Based Calendar Views**:
+
+**Owner/Executive Calendar**:
+- All scheduled jobs and their status
+- Crew assignments and availability overview
+- Revenue projections by day/week/month
+- Business meetings and strategic events
+- Holiday/blackout date planning
+- High-level resource allocation view
+
+**Operations Manager Calendar**:
+- Detailed job schedules with crew assignments
+- Truck and equipment allocation
+- Crew availability and time-off requests
+- Multi-day job coordination (regional/long-distance)
+- Emergency service slots and availability
+- Maintenance schedules for vehicles/equipment
+
+**Sales Team Calendar**:
+- Quote appointments and follow-ups
+- Customer consultations and estimates
+- Lead nurturing timeline and callbacks
+- Booking confirmations and customer communication
+- Territory planning and route optimization
+
+**Customer Service Calendar**:
+- Follow-up calls and review collection
+- Customer issue resolution deadlines
+- Insurance claim processing timelines
+- Post-move communication schedule
+
+**Crew Member Calendar** (Mobile App Access):
+- Personal job assignments and schedules
+- Check-in/check-out times and locations
+- Multi-day job sequences
+- Time-off requests and approval status
+
+**Calendar Features**:
+
+*Job Display Information:*
+- Customer name and contact info
+- Service type and estimated duration
+- Crew size and specific team assignments
+- Pickup and delivery addresses
+- Special handling requirements (pianos, safes, etc.)
+- Job status and progress indicators
+
+*Color Coding System:*
+- Confirmed jobs (green)
+- Pending/unconfirmed jobs (yellow)
+- Emergency services (red)
+- Multi-day jobs (blue)
+- Cancelled/rescheduled (gray)
+
+*Integration Points:*
+- Links to customer records and job details
+- Real-time status updates from crew mobile apps
+- Automatic rescheduling notifications
+- Weather alerts and contingency planning
+
+**Access Controls**:
+- **Read-Only for Most Users**: Calendar serves as information display, not scheduling tool
+- **Limited Edit Access**: Only authorized dispatchers can make schedule changes
+- **Mobile Sync**: Crew members see their personal schedules on mobile devices
+- **Customer Portal**: Limited view for customers to see their confirmed appointment details
+
+#### **Task Management System:**
+
+**Purpose**: Comprehensive task tracking for follow-ups, internal processes, and business operations with full CRUD functionality (Create, Read, Update, Delete).
+
+**Task Types**:
+
+*Customer Follow-Ups:*
+- Quote follow-up calls (24hr, 48hr, 1week intervals)
+- Post-move satisfaction check-ins
+- Review collection and testimonial requests
+- Insurance claim follow-ups
+- Payment collection and overdue reminders
+- Referral requests and relationship nurturing
+
+*Sales Tasks:*
+- Lead qualification and nurturing
+- Estimate appointments and scheduling
+- Quote generation and delivery deadlines
+- Contract signing and deposit collection
+- Customer onboarding and preparation calls
+
+*Operational Tasks:*
+- Crew scheduling and assignment confirmations
+- Equipment maintenance and inspections
+- Vehicle service appointments
+- Material inventory restocking
+- Facility maintenance and cleaning
+
+*Administrative Tasks:*
+- Permit applications and renewals
+- Insurance documentation updates
+- Compliance reporting and deadlines
+- Staff training and certification tracking
+- Vendor management and contract renewals
+
+**Task Properties**:
+- **Title and Description**: Clear, actionable task details
+- **Priority Level**: High, Medium, Low with visual indicators
+- **Due Date and Time**: Specific deadlines with overdue alerts
+- **Assigned User**: Individual responsibility and accountability
+- **Customer/Job Association**: Link to related records when applicable
+- **Status Tracking**: Not Started, In Progress, Completed, Cancelled
+- **Completion Notes**: Record outcomes and next steps
+
+**Task Management Features**:
+
+*Creation Methods:*
+- Manual task creation by any authorized user
+- Automated task generation from business rules (e.g., 24hr follow-up after quote)
+- Template-based tasks for common workflows
+- Bulk task creation for recurring processes
+
+*Organization and Filtering:*
+- My Tasks view (personal assignments)
+- Team Tasks view (department/role-based)
+- Customer-specific task history
+- Priority-based sorting and filtering
+- Due date and overdue task alerts
+
+*Completion and Tracking:*
+- One-click task completion with timestamp
+- Required completion notes for accountability
+- Task reassignment capabilities
+- Recurring task automation (daily, weekly, monthly)
+- Performance metrics and completion rates
+
+**Integration Points**:
+- **Customer Records**: Tasks automatically link to relevant customer/job records
+- **Calendar System**: Important tasks appear on relevant role calendars
+- **Dashboard**: Overdue and high-priority tasks show on dashboard alerts
+- **Mobile Access**: Field teams can complete and create tasks on mobile devices
+- **Notification System**: Email/SMS reminders for approaching deadlines
+
+**Role-Based Task Access**:
+- **Managers**: Can create, assign, and view all team tasks
+- **Sales Team**: Focus on lead nurturing and quote follow-ups
+- **Operations**: Equipment, scheduling, and logistics tasks
+- **Customer Service**: Follow-ups, reviews, and issue resolution
+- **Individual Users**: Personal task lists and assignments
+
+#### **Leads Management (Sales Module):**
+
+**Purpose**: Centralized lead management for incoming prospects who haven't received quotes yet. Focused on early-stage sales pipeline management and lead conversion.
+
+**Access Control**: 
+- **Sales Roles Only**: Sales Manager, Admin, Sales Team Members
+- **Other roles cannot access this module** (leads become visible in other modules after quote generation)
+
+**Lead Management Tabs**:
+
+**Unclaimed Leads Tab**:
+- **Purpose**: Pool of all new, unassigned leads available for sales team to claim
+- **Lead Sources**: Website forms, phone calls, referrals, Thumbtack, marketing campaigns
+- **Lead Information Display**:
+  - Contact details (name, phone, email)
+  - Lead source and acquisition date/time
+  - Move details (size, addresses, preferred date)
+  - Initial notes and special requirements
+  - Lead score/priority (hot lead, warm lead, cold lead)
+  - Time since lead was received (urgency indicators)
+
+**My Leads Tab**:
+- **Purpose**: Personal workspace for individually claimed leads
+- **Lead Assignment**: Self-claimed or manager-assigned leads
+- **Lead Status Tracking**:
+  - New (just claimed, no contact yet)
+  - Contacted (initial outreach completed)
+  - Qualified (move details confirmed, genuine prospect)
+  - Quote Pending (information gathered, ready for estimate)
+  - Lost (declined service, no longer interested)
+
+**Lead Management Actions**:
+
+*Claim/Assignment Process:*
+- **Self-Service Claiming**: Sales reps claim leads from unclaimed pool
+- **Manager Assignment**: Sales managers can assign specific leads to team members
+- **Lead Distribution Rules**: Round-robin, territory-based, or specialization-based assignment
+- **Claim Time Limits**: Automatic return to unclaimed pool if no action taken within timeframe
+
+*Lead Qualification Workflow:*
+- **Initial Contact**: Phone call, email, or text outreach
+- **Information Gathering**: Move size, dates, addresses, special requirements
+- **Needs Assessment**: Service type determination, budget qualification
+- **Quote Preparation**: Transition lead to quote generation process
+- **Follow-up Scheduling**: Automated task creation for callback appointments
+
+*Lead Status Management:*
+- **Status Updates**: Real-time status changes with timestamp tracking
+- **Activity Logging**: All calls, emails, texts automatically recorded
+- **Notes and Comments**: Detailed prospect interaction history
+- **Lead Scoring**: Dynamic scoring based on engagement and qualification factors
+
+**Lead Information Panel**:
+- **Contact Details**: Phone, email, preferred communication method
+- **Move Information**: Origin/destination, move size, service type preferences
+- **Timeline**: Preferred move date, flexibility, urgency level
+- **Lead Source**: Attribution tracking for marketing ROI analysis
+- **Interaction History**: Complete communication timeline
+- **Special Requirements**: Pianos, safes, storage needs, etc.
+
+**Integration Points**:
+- **Quote Generation**: Seamless transition from qualified lead to quote creation
+- **Task Creation**: Automatic follow-up tasks and callback reminders
+- **Activity Logging**: All interactions sync with customer audit trail
+- **Notification System**: New lead alerts and assignment notifications
+- **Dashboard Metrics**: Lead conversion rates and sales performance tracking
+
+**Performance Tracking**:
+- **Individual Metrics**: Leads claimed, contacted, converted per sales rep
+- **Team Performance**: Conversion rates, average time to quote, lead response times
+- **Lead Source Analysis**: ROI and conversion rates by acquisition channel
+- **Pipeline Velocity**: Time from lead to quote to booking measurements
+
+#### **Customer Management Module:**
+
+**Purpose**: Advanced pipeline management for prospects who have received quotes and progressed beyond initial lead stage. Handles opportunity nurturing through job completion and beyond.
+
+**Access Control**: 
+- **Broader Team Access**: Sales, Operations, Customer Service, Management
+- **Role-based permissions** for different actions and visibility levels
+
+**Customer Management Tabs**:
+
+**Opportunities Tab**:
+- **Status Scope**: Displays customers with status "Opportunity", "Booked", and "Confirmed"
+- **Purpose**: Active sales pipeline management for prospects with quotes who haven't completed moves yet
+- **Focus Areas**:
+  - Quote follow-up and conversion efforts
+  - Booking confirmations and scheduling coordination
+  - Pre-move customer preparation and communication
+  - Contract finalization and deposit collection
+
+**All Customers Tab**:
+- **Status Scope**: All customer statuses EXCEPT "Hot Lead" and "Lead"
+- **Includes**: Opportunity, Booked, Confirmed, Complete, Reviewed, and any other advanced statuses
+- **Purpose**: Comprehensive customer relationship management across entire lifecycle
+- **Use Cases**:
+  - Historical customer lookup and service history
+  - Post-move follow-up and relationship maintenance
+  - Repeat customer identification and targeting
+  - Customer service issue resolution and support
+
+**Customer Information Display**:
+
+*Contact and Basic Details:*
+- Customer name, phone, email, preferred communication method
+- Primary and secondary contact information
+- Customer type (residential, commercial, repeat customer)
+- Account creation date and last interaction timestamp
+
+*Move Details and Service Information:*
+- Move size, origin/destination addresses
+- Service type and special requirements
+- Estimated and actual move dates
+- Crew assignments and equipment needs
+- Current job status and progress indicators
+
+*Financial and Quote Information:*
+- Quote amount and pricing breakdown
+- Payment status (deposit received, balance due, paid in full)
+- Invoice history and payment transactions
+- Outstanding balances and collection status
+
+*Communication History:*
+- Complete interaction timeline (calls, emails, texts, in-person meetings)
+- Quote delivery and customer response tracking
+- Follow-up scheduled and completion status
+- Customer feedback and satisfaction scores
+
+**Customer Management Actions**:
+
+*Pipeline Progression:*
+- **Status Updates**: Move customers through pipeline stages with proper approvals
+- **Quote Modifications**: Re-rating, pricing adjustments, service changes
+- **Booking Confirmation**: Convert opportunities to confirmed jobs
+- **Scheduling Coordination**: Date confirmation and crew assignment
+
+*Communication Management:*
+- **Outreach Campaigns**: Automated and manual follow-up sequences
+- **Document Delivery**: Quote sharing, contract sending, receipt distribution
+- **Appointment Scheduling**: In-home estimates, pre-move consultations
+- **Issue Resolution**: Problem tracking and customer service ticket management
+
+*Relationship Building:*
+- **Post-Move Follow-up**: Satisfaction surveys and feedback collection
+- **Review Generation**: Automated review request campaigns
+- **Referral Programs**: Incentive tracking and reward management
+- **Repeat Business**: Service reminders and loyalty program enrollment
+
+**Integration Points**:
+- **Task Management**: Automatic follow-up task creation based on customer status
+- **Calendar System**: Customer appointments and service dates sync across all calendars
+- **Job Management**: Seamless transition from customer record to operational job details
+- **Financial System**: Payment tracking, invoicing, and accounts receivable integration
+- **Communication Platform**: Email, SMS, and call logging with customer records
+
+**Role-Based Customer Access**:
+- **Sales Team**: Focus on opportunities and booking conversion
+- **Operations**: Access to confirmed jobs and scheduling information
+- **Customer Service**: Complete access for issue resolution and post-move support
+- **Management**: Full visibility for oversight and strategic customer analysis
+
+#### **Dispatch Management System:**
+
+**Purpose**: Operational command center combining calendar-based job scheduling with resource allocation (crews, trucks, equipment). Designed for maximum usability and efficient crew deployment.
+
+**Access Control**: 
+- **Operations Team Only**: Dispatchers, Operations Managers, Supervisors
+- **Restricted Access**: Most critical operational module requiring specialized permissions
+
+**Core Interface Design Philosophy**:
+- **Simplicity First**: Minimize clicks and complexity for rapid decision-making
+- **Visual Clarity**: Color-coded systems and intuitive layout for quick understanding
+- **Mobile Responsive**: Field supervisors can access and modify assignments on mobile devices
+- **Real-Time Updates**: Instant synchronization across all platforms and users
+
+**Dispatch Calendar View**:
+
+*Main Calendar Interface:*
+- **Timeline View**: Day/week/month views with hour-by-hour job scheduling
+- **Job Slots**: Visual blocks showing scheduled moves with key details
+- **Availability Overlay**: Real-time crew and truck availability indicators
+- **Drag-and-Drop Assignment**: Move jobs between time slots and crew assignments
+- **Status Color Coding**: 
+  - Green: Fully staffed and dispatched
+  - Yellow: Partially assigned, needs completion
+  - Red: Unassigned or emergency priority
+  - Blue: Multi-day job sequences
+  - Gray: Completed or cancelled
+
+*Job Information Display (Per Calendar Slot):*
+- Customer name and contact info
+- Service type and estimated duration
+- Pickup/delivery addresses with map integration
+- Required crew size and specialization needs
+- Special equipment requirements (dollies, straps, piano boards)
+- Current assignment status and completion percentage
+
+**Resource Management Panel**:
+
+*Crew Availability Dashboard:*
+- **Real-Time Status**: Available, assigned, on-break, off-duty, unavailable
+- **Crew Profiles**: Names, specializations (piano, safe, white glove), experience levels
+- **Location Tracking**: Current job sites and estimated completion times
+- **Skills Matrix**: Special certifications and handling capabilities
+- **Performance Metrics**: Recent job completion rates and customer feedback
+
+*Truck and Equipment Allocation:*
+- **Vehicle Status**: Available, assigned, in-use, maintenance, out-of-service
+- **Truck Specifications**: Size, capacity, special equipment mounted
+- **Location Tracking**: Current position and estimated return times
+- **Maintenance Alerts**: Scheduled service dates and inspection requirements
+- **Equipment Inventory**: Dollies, straps, blankets, piano boards, safe equipment
+
+*Quick Assignment Interface:*
+- **Auto-Suggest Crews**: System recommends optimal crew combinations based on job requirements
+- **Availability Filtering**: Only show available resources for selected time slots
+- **Route Optimization**: Geographic clustering for efficient territory coverage
+- **Skill Matching**: Automatic pairing of specialized jobs with qualified crews
+- **Workload Balancing**: Even distribution of work across team members
+
+**Dispatch Workflow Management**:
+
+*Job Assignment Process:*
+1. **Job Review**: Verify customer details, service requirements, and special needs
+2. **Resource Matching**: Select appropriate crew size and truck capacity
+3. **Schedule Placement**: Assign to optimal time slot considering travel time and job duration
+4. **Confirmation**: Send crew notifications and customer confirmation
+5. **Monitoring**: Track job progress and crew status throughout the day
+
+*Emergency and Same-Day Dispatch:*
+- **Priority Override**: Emergency jobs get preferential resource allocation
+- **Crew Reassignment**: Ability to pull crews from lower-priority jobs
+- **Overtime Management**: Automatic calculation of extended hour costs
+- **Customer Communication**: Automated updates on crew arrival times
+
+*Multi-Day Job Coordination:*
+- **Sequential Planning**: Link related job days for regional and long-distance moves
+- **Crew Continuity**: Maintain same crew across multi-day projects when possible
+- **Equipment Tracking**: Ensure materials and trucks follow job progression
+- **Progress Monitoring**: Daily status updates and completion verification
+
+**Integration Features**:
+
+*Real-Time Communication:*
+- **Crew Mobile Sync**: Instant job assignment notifications to crew mobile apps
+- **Customer Updates**: Automatic arrival time and crew information sharing
+- **Status Broadcasting**: Job progress updates visible across all system modules
+- **Emergency Alerts**: Immediate notification system for urgent situations
+
+*Operational Intelligence:*
+- **Route Optimization**: Integrate with Google Maps for efficient crew routing
+- **Weather Monitoring**: Weather alerts affecting job scheduling and safety
+- **Traffic Integration**: Real-time traffic data for accurate arrival estimates
+- **Performance Analytics**: Crew efficiency and customer satisfaction tracking
+
+**Usability Enhancements**:
+- **One-Click Actions**: Common assignments (standard crew + truck) with single click
+- **Template Assignments**: Save and reuse common crew configurations
+- **Bulk Operations**: Assign multiple jobs or crews simultaneously
+- **Undo Functionality**: Quick reversal of assignment changes
+- **Search and Filter**: Rapid location of specific jobs, crews, or equipment
+
+#### **Customer Service Management:**
+
+**Purpose**: Handle customer complaints, collect reviews, and resolve issues. Keep it simple and focused on day-to-day customer service operations.
+
+**Access Control**: 
+- **Customer Service Team**: Full access
+- **Management**: Oversight and escalation
+- **Sales Team**: Limited access for review collection
+
+**Core Functions**:
+
+**Claims Management**:
+- Customer reports damage/issue with photos and description
+- Assign to team member for resolution
+- Track status (Open, In Progress, Resolved)
+- Process refunds/credits when needed
+- Simple notes and communication log
+
+**Review Management**:
+- Send automated review requests after completed jobs (email/SMS)
+- Monitor Google Reviews, Yelp, Facebook, and other platforms
+- Respond to reviews (both positive and negative)
+- Track overall rating trends and identify issues
+
+**Issue Resolution**:
+- Customer complaints and problems intake
+- Assign to appropriate team member
+- Track resolution progress and timeline
+- Follow up to confirm customer satisfaction
+- Simple escalation to manager when needed
+
+**Basic Analytics Tab**:
+- Customer satisfaction trends
+- Review ratings over time
+- Issue resolution times
+- Common complaint categories
+- Customer service team performance metrics
+
+**Simple Workflow**:
+1. Issue comes in → Create ticket
+2. Assign to team member → Work on resolution
+3. Communicate with customer → Keep them updated
+4. Resolve issue → Follow up for satisfaction
+5. Close ticket → Document outcome
+
+**Integration Points**:
+- Links to customer records and job history
+- Task creation for follow-ups
+- Basic reporting and metrics tracking
+
+#### **Marketing Management:**
+
+**Purpose**: Track marketing performance, manage referral programs, and monitor ROI across all marketing channels. Centralized view of advertising results and campaign effectiveness.
+
+**Access Control**: 
+- **Marketing Team**: Full access to campaigns and analytics
+- **Management**: ROI oversight and budget performance
+- **Sales Team**: Limited access to lead source attribution
+
+**Marketing Tabs**:
+
+**Advertising Campaigns Tab**:
+- **Google Ads Performance**: Click-through rates, cost per lead, conversion tracking
+- **Facebook/Meta Ads**: Campaign performance, audience insights, lead generation
+- **Google Local Services**: Lead quality, booking rates, cost per acquisition
+- **Other Platforms**: Yelp Ads, Nextdoor, Thumbtack performance tracking
+- **Campaign ROI**: Revenue generated vs ad spend for each platform
+- **Lead Attribution**: Track which campaigns generated specific customers
+
+**Google Business Profile (GBP) Tab**:
+- **Profile Performance**: Views, clicks, calls, direction requests
+- **Review Management**: GBP review monitoring and response tracking
+- **Post Performance**: Updates, offers, and announcement engagement
+- **Photo Analytics**: Image views and customer engagement
+- **Search Ranking**: Local search position tracking and optimization
+- **Competitor Analysis**: Compare performance against local moving companies
+
+**Social Media & Content Tab**:
+- **Platform Performance**: Facebook, Instagram, TikTok, YouTube engagement
+- **Content Analytics**: Post reach, engagement rates, follower growth
+- **Social Lead Generation**: Inquiries and bookings from social channels
+- **Influencer Collaborations**: Partnership tracking and performance
+- **Brand Mention Monitoring**: Social listening and reputation management
+
+**Referral Program Tab**:
+
+*Referral Tracking System:*
+- **Referral Source Management**: Track who referred each customer
+- **Commission Structure**: Set referral payout amounts and tiers
+- **Payment Tracking**: Outstanding referral payments and payment history
+- **Referrer Performance**: Top referral sources and their conversion rates
+- **Automated Payouts**: Schedule and process referral commission payments
+
+*Referral Program Types:*
+- **Customer Referrals**: Past customers referring new business
+- **Business Partner Referrals**: Real estate agents, property managers, contractors
+- **Employee Referrals**: Staff member referral bonuses
+- **Affiliate Program**: External partners promoting services
+
+*Referral Workflow:*
+1. Customer books job and mentions referral source
+2. System tracks referral attribution in customer record
+3. Job completes successfully
+4. Referral commission calculated automatically
+5. Payment processed to referrer
+6. Thank you communication sent
+
+**Marketing Analytics Dashboard**:
+
+*Key Performance Indicators:*
+- **Cost Per Lead (CPL)** by marketing channel
+- **Customer Acquisition Cost (CAC)** including all marketing expenses
+- **Return on Ad Spend (ROAS)** for each advertising platform
+- **Lead-to-Customer Conversion** rates by source
+- **Customer Lifetime Value (CLV)** by acquisition channel
+
+*Campaign Performance Metrics:*
+- **Monthly Ad Spend** vs budget across all platforms
+- **Lead Quality Scoring** based on booking and completion rates
+- **Seasonal Performance** trends and optimal timing analysis
+- **Geographic Performance** for targeted local advertising
+- **Attribution Analysis** for multi-touch customer journeys
+
+**Integration Features**:
+- **Lead Source Attribution**: Automatic tracking from first touch to booking
+- **CRM Connection**: Marketing data flows into customer records
+- **Financial Integration**: Ad spend and referral payments sync with accounting
+- **Task Automation**: Follow-up tasks for high-performing campaigns
+- **Real-Time Alerts**: Budget overruns, campaign performance drops, high-value referrals
+
+#### **Accounting & Financial Management:**
+
+**Purpose**: Unified financial system with zero duplication across all platforms. Complete integration between Plaid, QuickBooks, Stripe, and CRM for seamless financial operations.
+
+**Access Control**: 
+- **Accounting Team**: Full access to all financial data and reconciliation
+- **Management**: Revenue oversight and financial reporting
+- **Operations**: Limited access to payroll and expense tracking
+
+**Core Integration Philosophy**:
+- **Single Source of Truth**: All platforms sync automatically with no duplicate entries
+- **Real-Time Synchronization**: Every transaction flows between systems instantly
+- **Zero Manual Entry**: Automatic data flow prevents human error and duplication
+- **Complete Audit Trail**: Every financial transaction links back to originating customer/job
+
+**Financial System Integration**:
+
+**Plaid Integration (Day-to-Day Banking)**:
+- **Real-Time Bank Account Monitoring**: Live balance and transaction tracking
+- **Automatic Transaction Categorization**: Business expenses, customer payments, payroll
+- **Cash Flow Forecasting**: Daily/weekly cash flow projections based on scheduled jobs
+- **Payment Verification**: Automatic matching of customer payments to invoices
+- **Expense Tracking**: Automatic categorization of fuel, materials, equipment purchases
+
+**QuickBooks Integration (Long-Term Accounting)**:
+- **Automatic Data Sync**: All CRM transactions flow into QuickBooks automatically
+- **Chart of Accounts Mapping**: CRM categories automatically map to correct QuickBooks accounts
+- **Financial Reporting**: P&L, balance sheet, cash flow statements with CRM job attribution
+- **Tax Preparation**: Organized records for accountant and tax filing
+- **Invoice Generation**: Professional invoices created from CRM job completion
+
+**Stripe Integration (Payment Processing)**:
+- **Customer Payment Processing**: Credit cards, ACH transfers, digital payments
+- **Automatic Invoice Matching**: Payments automatically applied to correct customer invoices
+- **Recurring Billing**: Automated monthly charges for storage or ongoing services
+- **Refund Processing**: Seamless refunds that sync across all systems
+- **Payment Status Tracking**: Real-time payment confirmation in CRM customer records
+
+**CRM Financial Hub (Central Control)**:
+- **Job-Based Accounting**: Every transaction links to specific customer and job
+- **Revenue Recognition**: Track when services are performed vs when payment received
+- **Customer Account Status**: Real-time balance and payment history per customer
+- **Pricing Accuracy Tracking**: Compare quoted vs actual charges for estimation improvement
+
+**Payroll Management System**:
+
+*Employee Payment Processing:*
+- **Hourly Tracking**: Integration with crew mobile check-in/check-out times
+- **Overtime Calculations**: Automatic overtime rates for extended job hours
+- **Commission Tracking**: Sales team commissions based on closed deals
+- **Referral Payouts**: Automatic processing of referral commission payments
+- **Tax Withholding**: Automatic payroll tax calculations and submissions
+
+*Payroll Integration:*
+- **Time Clock Integration**: Crew mobile app times sync directly to payroll
+- **Job-Based Pay**: Track which jobs each crew member worked for cost analysis
+- **Performance Bonuses**: Customer satisfaction-based bonus calculations
+- **Direct Deposit**: Automated employee payment processing
+- **Payroll Reporting**: Labor costs per job for profitability analysis
+
+**Future Payment Solutions (WIP)**:
+
+*Pay-in-4 Integration (Future Implementation):*
+- **Customer Financing Options**: Partner with credit companies for payment plans
+- **Upfront Payment Guarantee**: Company receives full payment immediately
+- **Credit Processing**: Customer financing handled by third-party partner
+- **Risk Management**: Credit approval and payment guarantee systems
+- **Integration Planning**: Seamless checkout experience with financing options
+
+**Financial Dashboard Overview**:
+
+*Daily Financial Metrics:*
+- **Today's Revenue**: Completed jobs and payments received
+- **Outstanding Invoices**: Unpaid balances and aging analysis  
+- **Cash Position**: Real-time bank balance across all accounts
+- **Daily Expenses**: Fuel, materials, payroll, and operational costs
+- **Profit Margins**: Job profitability analysis and trends
+
+*Monthly Financial Health:*
+- **Revenue vs Budget**: Performance against financial targets
+- **Customer Payment Trends**: Average payment times and collection efficiency
+- **Cost per Job**: Labor, materials, and overhead allocation
+- **Seasonal Analysis**: Revenue patterns and cash flow planning
+- **Growth Metrics**: Month-over-month revenue and customer acquisition
+
+**Reconciliation and Accuracy Controls**:
+- **Automatic Matching**: Bank transactions automatically match to CRM records
+- **Exception Reporting**: Alert system for unmatched or duplicate transactions
+- **Daily Reconciliation**: Automated daily balance verification across all systems
+- **Audit Trail**: Complete transaction history with originating job/customer links
+- **Error Prevention**: Validation rules prevent duplicate or incorrect entries
+
+#### **Reports & Analytics:**
+
+**Purpose**: Comprehensive business intelligence and reporting across all aspects of the moving company. Data-driven insights for strategic decision-making and operational optimization.
+
+**Access Control**: 
+- **Management**: Full access to all reports and analytics
+- **Department Heads**: Access to relevant departmental reports
+- **Team Leads**: Limited access to team performance metrics
+
+**Sales & Marketing Reports**:
+
+*Lead Generation & Conversion:*
+- **Lead Source Performance**: Conversion rates and ROI by marketing channel
+- **Sales Pipeline Analysis**: Lead-to-opportunity-to-booking progression
+- **Sales Rep Performance**: Individual and team conversion metrics
+- **Lead Response Times**: Speed of contact and follow-up effectiveness
+- **Seasonal Lead Trends**: Monthly/yearly lead volume patterns
+- **Geographic Lead Distribution**: Service area performance and expansion opportunities
+
+*Marketing ROI Analysis:*
+- **Cost Per Acquisition**: Customer acquisition cost by marketing channel
+- **Campaign Performance**: Ad spend vs revenue generated per campaign
+- **Return on Ad Spend (ROAS)**: Profitability analysis by platform
+- **Customer Lifetime Value**: Long-term value by acquisition source
+- **Referral Program Performance**: Referral conversion and commission tracking
+
+**Operational Performance Reports**:
+
+*Job Execution & Efficiency:*
+- **Crew Utilization**: Daily/weekly crew productivity and availability
+- **Job Completion Times**: Actual vs estimated duration analysis
+- **Equipment Usage**: Truck and equipment efficiency tracking
+- **Route Optimization**: Travel time and territory coverage analysis
+- **Multi-Day Job Performance**: Regional and long-distance move efficiency
+
+*Service Quality Metrics:*
+- **Customer Satisfaction Scores**: Job completion ratings and feedback trends
+- **Damage Claims Analysis**: Frequency, cost, and root cause identification
+- **Service Issue Tracking**: Common problems and resolution effectiveness
+- **Crew Performance**: Individual and team customer service ratings
+- **On-Time Performance**: Schedule adherence and punctuality metrics
+
+**Financial Performance Reports**:
+
+*Revenue & Profitability:*
+- **Daily/Weekly/Monthly Revenue**: Revenue trends and growth analysis
+- **Profit Margins by Service**: Profitability comparison across service types
+- **Job Profitability Analysis**: Individual job performance and cost tracking
+- **Pricing Accuracy**: Quoted vs actual charges variance analysis
+- **Revenue per Crew**: Productivity and profitability per team
+
+*Financial Health Indicators:*
+- **Cash Flow Analysis**: Daily/weekly cash position and forecasting
+- **Accounts Receivable Aging**: Outstanding payment tracking and collection
+- **Operating Expense Trends**: Cost category analysis and budget variance
+- **Seasonal Revenue Patterns**: Peak/off-season performance planning
+- **Customer Payment Analysis**: Payment time trends and collection efficiency
+
+**Human Resources & Payroll Reports**:
+
+*Workforce Analytics:*
+- **Payroll Cost Analysis**: Labor costs per job and profitability impact
+- **Overtime Tracking**: Overtime frequency and cost management
+- **Employee Performance**: Individual productivity and customer satisfaction
+- **Training Needs Assessment**: Skills gaps and development opportunities
+- **Turnover Analysis**: Retention rates and hiring effectiveness
+
+*Scheduling & Availability:*
+- **Crew Scheduling Efficiency**: Optimal crew size and utilization
+- **Employee Availability**: Time-off patterns and coverage analysis
+- **Peak Season Staffing**: Resource planning for busy periods
+- **Performance-Based Compensation**: Commission and bonus tracking
+
+**Customer Relationship Reports**:
+
+*Customer Analytics:*
+- **Customer Acquisition Trends**: New customer growth and retention
+- **Repeat Customer Analysis**: Loyalty and repeat business rates
+- **Customer Segmentation**: Service preferences and spending patterns
+- **Geographic Customer Distribution**: Service area coverage and density
+- **Customer Feedback Trends**: Satisfaction scores and improvement areas
+
+*Service History & Retention:*
+- **Customer Service History**: Complete interaction and service timeline
+- **Referral Generation**: Customer referral rates and program effectiveness
+- **Review and Rating Trends**: Online reputation and customer sentiment
+- **Complaint Resolution**: Issue resolution time and satisfaction recovery
+
+**Industry-Specific Moving Reports**:
+
+*Move Type Performance:*
+- **Local vs Long-Distance**: Service type profitability and efficiency
+- **Residential vs Commercial**: Market segment performance analysis
+- **Service Tier Analysis**: Full Service vs White Glove vs Labor Only
+- **Special Handling Jobs**: Piano, safe, and specialty item profitability
+
+*Seasonal & Market Analysis:*
+- **Peak Season Performance**: Summer moving season optimization
+- **Market Share Analysis**: Competitive positioning and growth opportunities
+- **Service Area Expansion**: New territory performance and viability
+- **Economic Impact Analysis**: Local market conditions and business impact
+
+**Compliance & Safety Reports**:
+
+*DOT & Safety Compliance:*
+- **Driver Hours Tracking**: DOT compliance and violation prevention
+- **Vehicle Maintenance**: Inspection schedules and compliance status
+- **Safety Incident Reports**: Accident frequency and prevention analysis
+- **Insurance Claims**: Coverage utilization and risk management
+
+*Quality Assurance:*
+- **Service Standard Compliance**: Adherence to company procedures
+- **Training Completion**: Employee certification and skill development
+- **Customer Complaint Analysis**: Service quality trends and improvements
+- **Audit Trail Reports**: Complete transaction and activity logging
+
+**Custom Report Builder**:
+- **Drag-and-Drop Interface**: Create custom reports without technical skills
+- **Scheduled Reports**: Automated report generation and distribution
+- **Export Options**: PDF, Excel, CSV formats for external analysis
+- **Dashboard Integration**: Key metrics display on main dashboard
+- **Real-Time Data**: Live reporting with current business data
+
+#### **Enhanced Social Media Integration:**
+
+**Multi-Platform Social Management**:
+
+**Core Social Media Platforms**:
+- **Facebook API Integration**: Page management, post scheduling, engagement tracking, lead generation campaigns
+- **Instagram Graph API**: Content posting, story management, business profile analytics, hashtag performance
+- **Twitter API v2**: Tweet scheduling, engagement metrics, brand mention monitoring, trending topics
+- **LinkedIn API**: Company page management, professional content sharing, recruitment posting, business networking
+- **YouTube Analytics API**: Video performance tracking, channel growth metrics, engagement analysis
+- **Yelp Fusion API**: Business profile management, review monitoring, competitor analysis, local search optimization
+
+**Unified Social Media Dashboard**:
+- **Cross-Platform Posting**: Schedule and publish content across all platforms simultaneously
+- **Engagement Tracking**: Unified view of likes, comments, shares, and mentions across all channels
+- **Analytics Consolidation**: Combined performance metrics and ROI analysis from all social platforms
+- **Content Calendar**: Visual calendar showing all scheduled posts across platforms
+- **Brand Monitoring**: Real-time alerts for mentions, reviews, and customer interactions
+
+**Platform-Specific Features**:
+
+*Facebook Integration:*
+- **Business Page Management**: Post scheduling, event promotion, service showcase
+- **Facebook Ads Integration**: Campaign performance tracking, lead generation form sync
+- **Messenger Integration**: Customer service chat integration with CRM records
+- **Local Business Features**: Location-based promotions and service area targeting
+
+*Instagram Integration:*
+- **Visual Content Management**: Photo/video posting, story highlights, IGTV content
+- **Business Profile Analytics**: Follower demographics, post performance, story insights
+- **Hashtag Strategy**: Performance tracking and optimization recommendations
+- **Instagram Shopping**: Service promotion and booking link integration
+
+*LinkedIn Integration:*
+- **Company Page Management**: Professional content sharing, industry thought leadership
+- **Employee Advocacy**: Team member content sharing and company promotion
+- **Recruitment Integration**: Job posting sync with HR module, candidate sourcing
+- **B2B Lead Generation**: Commercial moving service promotion and networking
+
+*YouTube Integration:*
+- **Channel Management**: Video upload scheduling, playlist organization, thumbnail optimization
+- **Performance Analytics**: View metrics, audience retention, subscriber growth tracking
+- **SEO Optimization**: Video title, description, and tag optimization for search visibility
+- **Content Strategy**: Trending topic identification and content planning
+
+#### **HR & Hiring Management:**
+
+**Purpose**: Complete recruitment pipeline from job posting to employee onboarding. Integrated applicant tracking system with external job board connections.
+
+**Access Control**: 
+- **HR Team**: Full recruitment pipeline management
+- **Management**: Hiring oversight and approval workflows  
+- **Department Heads**: Limited access for team-specific hiring needs
+
+**Job Board Integrations**:
+
+**Indeed Integration**:
+- **Job Posting Sync**: Automatic job posting from CRM to Indeed platform
+- **Application Management**: Indeed applications flow directly into CRM hiring pipeline
+- **Performance Tracking**: Application volume, cost-per-application, quality metrics
+- **Sponsored Job Management**: Budget allocation and performance optimization
+
+**Multi-Platform Job Distribution**:
+- **LinkedIn Jobs**: Professional network job posting and candidate sourcing
+- **ZipRecruiter**: Broad reach job distribution and candidate screening
+- **Glassdoor**: Employer brand management and salary benchmarking
+- **Local Job Boards**: Regional job board integration for local candidate sourcing
+- **Facebook Jobs**: Social media job promotion and community-based hiring
+
+**Hiring Pipeline Management**:
+
+**Candidate Sourcing**:
+- **Active Job Postings**: Current openings with application tracking
+- **Candidate Database**: Previous applicants and recruitment history
+- **Employee Referrals**: Internal referral program with tracking and rewards
+- **Talent Pool**: Qualified candidates for future opportunities
+
+**Application Processing Workflow**:
+1. **Application Received**: Automatic notification and initial screening
+2. **Resume Review**: Qualification assessment and scoring
+3. **Phone Screening**: Initial interview scheduling and notes
+4. **In-Person Interview**: Comprehensive evaluation and team interviews
+5. **Background Check**: Reference verification and screening process
+6. **Job Offer**: Offer generation and negotiation tracking
+7. **Onboarding**: New employee integration and training schedule
+
+**Position-Specific Hiring**:
+
+*Moving Crew Positions:*
+- **Physical Requirements**: Lifting capacity, stamina, and safety awareness
+- **Experience Assessment**: Previous moving experience and skill evaluation
+- **Background Screening**: Clean driving record, criminal background check
+- **Skills Testing**: Practical moving skills demonstration and evaluation
+
+*Driver Positions:*
+- **CDL Requirements**: Commercial driver's license verification
+- **DOT Compliance**: Medical certification and driving record review
+- **Vehicle Operation**: Truck handling skills and safety protocol knowledge
+- **Route Experience**: Local area knowledge and navigation skills
+
+*Sales Team Positions:*
+- **Communication Skills**: Customer interaction and relationship building
+- **Industry Knowledge**: Moving industry experience and service understanding
+- **Performance Metrics**: Sales goal achievement and conversion tracking
+- **CRM Proficiency**: System training and customer management skills
+
+**Recruitment Analytics**:
+- **Time-to-Hire**: Average recruitment cycle duration by position type
+- **Cost-per-Hire**: Recruitment expenses and ROI analysis per position
+- **Source Effectiveness**: Job board performance and candidate quality metrics
+- **Retention Tracking**: New hire success rates and turnover analysis
+- **Diversity Metrics**: Equal opportunity hiring and demographic tracking
+
+**Employee Onboarding Integration**:
+- **New Hire Documentation**: Digital forms, tax documents, and policy acknowledgments
+- **Training Schedule**: Position-specific training programs and certification tracking
+- **Equipment Assignment**: Uniform, tools, and technology provisioning
+- **Performance Tracking**: 30/60/90-day review scheduling and goal setting
+- **Payroll Integration**: Automatic employee setup in payroll system
+
+#### **Fleet & Inventory Management:**
+
+**Purpose**: Comprehensive asset management for vehicles, equipment, crew members, and inventory. Long-term resource planning and maintenance separate from daily dispatch operations.
+
+**Access Control**: 
+- **Fleet Managers**: Full vehicle and equipment management
+- **Inventory Managers**: Equipment and supplies tracking
+- **Operations**: Read-only access for resource planning
+- **Maintenance Staff**: Vehicle service and repair tracking
+
+**Fleet Management Tab**:
+
+**Vehicle Management**:
+- **Truck Profiles**: Make, model, year, VIN, capacity, specifications
+- **Registration & Insurance**: Documentation tracking and renewal alerts
+- **DOT Compliance**: Commercial vehicle inspections and certification status
+- **Fuel Efficiency**: MPG tracking and cost analysis per vehicle
+- **Vehicle History**: Complete service record and incident tracking
+
+**Maintenance Scheduling**:
+- **Preventive Maintenance**: Oil changes, tire rotations, brake inspections on schedule
+- **Mileage Tracking**: Automatic odometer updates from crew mobile check-ins
+- **Service Alerts**: Automated notifications for upcoming maintenance needs
+- **Repair Tracking**: Work order management and vendor coordination
+- **Cost Analysis**: Maintenance expenses per vehicle and total fleet costs
+
+**Vehicle Performance Analytics**:
+- **Utilization Rates**: Daily/weekly usage patterns and efficiency
+- **Fuel Cost Tracking**: Per-mile fuel expenses and budget variance
+- **Downtime Analysis**: Out-of-service time and impact on operations
+- **Replacement Planning**: Age, mileage, and cost-based replacement schedules
+- **Route Efficiency**: GPS data integration for optimization opportunities
+
+**Crew Management Tab**:
+
+**Mover Profiles & Skills Matrix**:
+- **Personal Information**: Contact details, emergency contacts, employment history
+- **Skill Certifications**: Piano moving, safe handling, white glove specializations
+- **Physical Capabilities**: Lifting capacity, stamina ratings, injury history
+- **Performance Ratings**: Customer satisfaction scores and job completion quality
+- **Training Records**: Completed courses, certifications, ongoing development needs
+
+**Training & Development System**:
+- **Onboarding Programs**: New employee orientation and basic moving techniques
+- **Specialty Training**: Piano, safe, antique, and fragile item handling
+- **Safety Certification**: OSHA compliance, lifting techniques, accident prevention
+- **Customer Service**: Communication skills and professional behavior training
+- **Continuous Education**: Ongoing skill development and career advancement
+
+**Availability & Scheduling Preferences**:
+- **Work Availability**: Full-time, part-time, seasonal, weekend preferences
+- **Skill-Based Assignment**: Automatic matching of specialized jobs to qualified movers
+- **Performance History**: Job completion rates, customer feedback, reliability scores
+- **Team Compatibility**: Crew chemistry and optimal team combinations
+- **Location Preferences**: Territory assignments and travel willingness
+
+**Equipment & Inventory Tab**:
+
+**Real-Time Inventory Tracking**:
+- **Moving Equipment**: Dollies, straps, blankets, piano boards, safe equipment
+- **Packing Materials**: Boxes, tape, bubble wrap, paper, specialty containers
+- **Tools & Supplies**: Hand trucks, ramps, furniture pads, shrink wrap
+- **Location Tracking**: Equipment assigned to trucks, crews, or warehouse storage
+- **Usage Analytics**: Equipment utilization rates and replacement needs
+
+**Mobile App Integration**:
+- **Check-Out System**: Crew members scan equipment when taking from inventory
+- **Check-In Process**: Return tracking with condition assessment
+- **Real-Time Updates**: Inventory levels update instantly across all systems
+- **Location Services**: GPS tracking of equipment with crew assignments
+- **Damage Reporting**: Mobile incident reporting for damaged equipment
+
+**Amazon Integration & Auto-Ordering**:
+- **Low Stock Alerts**: Automatic notifications when inventory drops below thresholds
+- **Smart Reordering**: AI-driven reorder quantities based on usage patterns
+- **One-Click Purchase**: Direct ordering from Amazon Business account
+- **Delivery Tracking**: Package tracking and automatic inventory updates
+- **Cost Optimization**: Price comparison and bulk ordering recommendations
+
+**Inventory Analytics**:
+- **Usage Patterns**: Seasonal demand forecasting and procurement planning
+- **Cost per Job**: Equipment and material costs allocation to specific jobs
+- **Waste Reduction**: Optimization recommendations to minimize unused supplies
+- **Vendor Performance**: Supplier reliability and cost effectiveness analysis
+- **ROI Tracking**: Equipment investment returns and replacement justification
+
+**Equipment Lifecycle Management**:
+
+**Asset Tracking**:
+- **Equipment Registry**: Complete inventory with serial numbers, purchase dates, costs
+- **Condition Monitoring**: Regular inspections and maintenance scheduling
+- **Depreciation Tracking**: Asset value calculation for accounting and insurance
+- **Replacement Planning**: Age-based and condition-based replacement strategies
+- **Warranty Management**: Warranty tracking and claim processing
+
+**Maintenance & Repairs**:
+- **Preventive Maintenance**: Scheduled servicing for trucks, dollies, and power tools
+- **Repair Work Orders**: Issue tracking and vendor coordination
+- **Parts Inventory**: Replacement parts stocking and ordering
+- **Service Vendor Management**: Preferred vendor relationships and performance tracking
+- **Cost Control**: Maintenance budget tracking and variance analysis
+
+**Integration Features**:
+
+**Dispatch Integration**:
+- **Real-Time Availability**: Dispatch sees current vehicle and equipment status
+- **Automatic Assignment**: Available resources automatically populate dispatch options
+- **Maintenance Conflicts**: Prevents assignment of vehicles scheduled for service
+- **Crew Matching**: Skill-based crew suggestions for specialized jobs
+
+**Financial Integration**:
+- **Asset Accounting**: Equipment values and depreciation sync with accounting
+- **Maintenance Costs**: Service expenses automatically categorized and tracked
+- **Procurement Integration**: Purchase orders and invoices flow to accounting system
+- **Budget Management**: Department budgets and variance tracking
+
+**Mobile Workforce Connection**:
+- **Equipment Scanning**: QR code scanning for check-out/check-in processes
+- **Mileage Reporting**: Automatic odometer updates from crew mobile apps
+- **Incident Reporting**: Real-time damage or maintenance issue reporting
+- **Performance Feedback**: Crew performance data flows back to profiles
+
+#### **Settings & Configuration Management:**
+
+**Purpose**: Frontend-configurable system settings for business rules, pricing, and operational parameters. Allows non-technical users to modify CRM behavior without code changes.
+
+**Access Control**: 
+- **System Administrators**: Full access to all configuration settings
+- **Management**: Business rule and pricing modifications
+- **Department Heads**: Limited access to relevant departmental settings
+- **Regular Users**: Personal preferences and display settings only
+
+**Business Configuration Settings**:
+
+**Pricing & Estimation Configuration**:
+- **Base Hourly Rates**: Modify service type rates and crew size pricing tiers
+- **Additional Mover Rates**: Adjust per-hour rates for extra crew members
+- **Service Speed Modifiers**: Update cuft/hr/mover rates for different service types
+- **Handicap Modifiers**: Adjust percentage increases for stairs, elevators, walk distance
+- **Emergency Service Rates**: Configure surcharge amounts and time thresholds
+- **Fuel & Mileage Rates**: Update per-mile charges and fuel surcharges
+- **Specialty Item Pricing**: Modify piano, safe, and specialty handling charges
+
+**Move Size & Crew Configuration**:
+- **Cubic Feet Mapping**: Edit move size to cubic feet conversions
+- **Crew Size Thresholds**: Adjust cuft ranges for crew size determination
+- **Handicap Crew Thresholds**: Modify when additional crew members are added
+- **Service Type Definitions**: Add, edit, or remove service offerings
+- **Box Estimation Parameters**: Update per-room box counts and packing time estimates
+
+**Business Rules & Workflow Settings**:
+
+**Lead Management Rules**:
+- **Hot Lead Duration**: Configure auto-downgrade timer (currently 5 minutes)
+- **Lead Assignment Rules**: Round-robin, territory-based, or manual assignment
+- **Follow-up Intervals**: Set automatic task creation timelines (24hr, 48hr, 1week)
+- **Lead Scoring Parameters**: Adjust qualification criteria and point values
+- **Source Attribution**: Configure lead source tracking and marketing attribution
+
+**Job Scheduling & Dispatch Rules**:
+- **Working Hours**: Set business operating hours and availability windows
+- **Time Slot Intervals**: Configure scheduling increment sizes (15min, 30min, 1hr)
+- **Travel Time Calculations**: Adjust buffer times between jobs
+- **Crew Break Scheduling**: Set mandatory break intervals and durations
+- **Overtime Thresholds**: Configure when overtime rates apply
+
+**Financial & Payment Settings**:
+
+**Payment Processing Configuration**:
+- **Payment Terms**: Net 15, Net 30, immediate payment requirements
+- **Late Fee Structure**: Automatic late fee calculation and application
+- **Deposit Requirements**: Percentage or fixed deposit amounts by service type
+- **Refund Policies**: Automated refund rules and approval workflows
+- **Tax Configuration**: Sales tax rates by service area and exemptions
+
+**Accounting Integration Settings**:
+- **Chart of Accounts Mapping**: Connect CRM categories to QuickBooks accounts
+- **Revenue Recognition Rules**: When to recognize income (booking vs completion)
+- **Cost Allocation**: How to distribute overhead and indirect costs
+- **Reporting Periods**: Fiscal year settings and period definitions
+
+**System Integration Settings**:
+
+**Third-Party API Configuration**:
+- **Google Maps API**: Distance calculation settings and route optimization
+- **Stripe Payment Settings**: Processing fees, settlement timing, fraud protection
+- **Email/SMS Providers**: Twilio, SendBlue, Resend configuration and templates
+- **Marketing Platform APIs**: Google Ads, Facebook Ads, Yelp integration settings
+- **Social Media Connections**: Platform authentication and posting permissions
+
+**Database & Performance Settings**:
+- **Data Retention Policies**: How long to keep customer records and transaction data
+- **Backup Scheduling**: Automated backup frequency and retention periods
+- **Performance Monitoring**: System health alerts and threshold settings
+- **User Session Management**: Timeout periods and concurrent login policies
+
+**User Management & Security Settings**:
+
+**Role-Based Access Control**:
+- **Permission Templates**: Pre-configured role permissions (Admin, Manager, Sales, etc.)
+- **Custom Role Creation**: Build custom roles with specific permission sets
+- **Department Access**: Restrict module access by department or team
+- **Data Visibility Rules**: Customer data access restrictions and territory assignments
+
+**Security & Compliance Settings**:
+- **Password Requirements**: Complexity rules, expiration periods, history restrictions
+- **Two-Factor Authentication**: Mandatory 2FA for sensitive roles and operations
+- **Audit Logging**: Configure what actions are logged and retention periods
+- **Data Encryption**: Encryption settings for sensitive customer information
+- **GDPR Compliance**: Data privacy settings and customer consent management
+
+**Notification & Communication Settings**:
+
+**Automated Notification Rules**:
+- **Customer Communications**: Booking confirmations, arrival notifications, follow-up sequences
+- **Internal Alerts**: Job assignments, schedule changes, emergency notifications
+- **Email Templates**: Customizable templates for quotes, invoices, and communications
+- **SMS Configuration**: Message templates and sending rules
+- **Escalation Procedures**: When and how to escalate issues or overdue tasks
+
+**Dashboard & Display Preferences**:
+- **Default Views**: Set default dashboard layouts by role
+- **KPI Selections**: Choose which metrics display on main dashboard
+- **Color Coding**: Customize status colors and visual indicators
+- **Report Scheduling**: Automated report generation and distribution
+- **Mobile App Settings**: Push notification preferences and offline sync rules
+
+**Inventory & Equipment Settings**:
+
+**Inventory Management Rules**:
+- **Reorder Points**: Set low stock thresholds for automatic ordering
+- **Safety Stock Levels**: Minimum inventory levels to maintain
+- **Vendor Preferences**: Default suppliers and ordering preferences
+- **Equipment Check-out Rules**: How long equipment can be assigned to crews
+- **Maintenance Scheduling**: Preventive maintenance intervals and reminders
+
+**Fleet Management Configuration**:
+- **Vehicle Assignment Rules**: How trucks are assigned to crews and jobs
+- **Fuel Efficiency Targets**: MPG goals and performance tracking
+- **Maintenance Intervals**: Service schedules based on mileage or time
+- **DOT Compliance Rules**: Inspection schedules and certification tracking
+
+**Advanced Configuration Options**:
+
+**Custom Field Management**:
+- **Customer Fields**: Add custom data fields for specific business needs
+- **Job Properties**: Create custom job attributes and tracking fields
+- **Lead Qualification**: Custom qualification questions and scoring
+- **Reporting Fields**: Additional data points for custom reports
+
+**Workflow Automation**:
+- **Trigger Events**: Define when automated actions should occur
+- **Action Rules**: What happens when triggers are activated
+- **Approval Workflows**: Multi-step approval processes for pricing or scheduling
+- **Integration Triggers**: When to sync data with external systems
+
+**Regional & Localization Settings**:
+- **Service Areas**: Define geographic boundaries and coverage zones
+- **Time Zones**: Multi-location time zone handling
+- **Currency Settings**: Regional currency and formatting preferences
+- **Language Options**: Multi-language support for customer communications
+- **Holiday Calendars**: Regional holidays and business closure dates
+
+**Configuration Management Features**:
+- **Change Tracking**: Log all configuration changes with user and timestamp
+- **Version Control**: Ability to rollback configuration changes
+- **Testing Environment**: Sandbox mode for testing configuration changes
+- **Bulk Updates**: Mass update similar settings across categories
+- **Export/Import**: Configuration backup and transfer capabilities
 
 **LONG-DISTANCE MOVES (301–500 miles):**
 1. Attempt Single-Day Load-Drive-Unload within 14-hour DOT duty window
