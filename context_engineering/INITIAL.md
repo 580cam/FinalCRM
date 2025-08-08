@@ -68,13 +68,15 @@ packages/
 
 **3. CRM Mobile App** (`packages/crm-mobile/`)
 - **Purpose**: Full CRM access for managers and sales staff on mobile
-- **Features**:
-  - Complete feature parity with web CRM
-  - Mobile-optimized interface for touch interaction
-  - Push notifications for important updates
-  - Offline capability for core functions
-  - Camera integration for document capture
-  - GPS integration for location-based features
+- **Target Users**: Sales managers, operations managers, sales reps, customer service (field access)
+- **Core Philosophy**: Complete feature parity with web CRM, optimized for mobile workflows and touch interaction
+- **Key Mobile Advantages**:
+  - Access CRM anywhere (customer visits, job sites, commute)
+  - Push notifications for urgent leads and updates
+  - Voice-to-text for quick note-taking and responses
+  - Camera integration for photos and document scanning
+  - GPS location context for nearby customers and jobs
+  - Offline capability with sync when connection restored
 - **Technology**: Expo/React Native with native mobile capabilities
 
 **4. Crew Mobile App** (`packages/crew-mobile/`)
@@ -96,6 +98,491 @@ packages/
 - **Unified Data Flow**: Real-time updates between marketing leads, CRM management, and field operations
 - **Complete Customer Journey**: Seamless handoff from website quote to CRM management to crew execution
 - **Operational Efficiency**: Field crews, managers, and customers all use the same underlying business logic
+
+---
+
+## **CURRENT DATABASE SCHEMA (Supabase)**
+
+The following is the **existing database structure** that has already been implemented in Supabase. This represents the current foundation that all applications will build upon.
+
+### **Core Business Tables**
+
+#### **1. leads** (Customer Lead Management)
+```sql
+CREATE TABLE leads (
+  id                bigint PRIMARY KEY,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  name              text,
+  email             text,
+  phone             text,
+  updated_at        timestamptz
+);
+```
+
+#### **2. quotes** (Quote Management & Pipeline)
+```sql
+CREATE TABLE quotes (
+  id                  bigint PRIMARY KEY,
+  created_at          timestamptz NOT NULL DEFAULT now(),
+  lead_id             bigint REFERENCES leads(id),
+  status              text,  -- 'hot lead', 'lead', 'opportunity', 'booked', 'confirmed', 'complete', 'reviewed'
+  referral_source     text,
+  move_size           text,
+  inventory           jsonb,  -- Stores inventory data from Yembo AI or manual entry
+  service_type        text,
+  total               double precision,
+  calculation_mode    text,   -- 'moveSize' or 'inventory'
+  total_cubic_ft      double precision,
+  total_weight        double precision,
+  user_id             bigint REFERENCES users(id),  -- Assigned salesperson
+  is_self_claimed     boolean DEFAULT false,
+  packing_density     text
+);
+```
+
+#### **3. jobs** (Job Execution & Management)
+```sql
+CREATE TABLE jobs (
+  id                bigint PRIMARY KEY,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  quote_id          bigint REFERENCES quotes(id),
+  job_type          text,
+  job_status        text,
+  move_date         timestamptz,
+  movers            bigint,    -- Number of movers required
+  trucks            bigint,    -- Number of trucks required
+  estimated_hours   double precision,
+  hourly_rate       double precision,
+  total_price       double precision,
+  move_distance     double precision,
+  notes             text,
+  updated_at        timestamptz,
+  crew_id           bigint REFERENCES crews(id)
+);
+```
+
+#### **4. job_addresses** (Multi-Location Support)
+```sql
+CREATE TABLE job_addresses (
+  id              bigint PRIMARY KEY,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  job_id          bigint REFERENCES jobs(id),
+  type            text,    -- 'origin', 'destination'
+  address         text,
+  property_name   text,
+  unit_number     text,
+  stairs          text,    -- Number of flights
+  walk_distance   text,    -- Distance from truck to door
+  elevator        boolean,
+  updated_at      timestamptz
+);
+```
+
+#### **5. job_charges** (Detailed Pricing Breakdown)
+```sql
+CREATE TABLE job_charges (
+  id                      bigint PRIMARY KEY,
+  created_at              timestamptz NOT NULL DEFAULT now(),
+  job_id                  bigint REFERENCES jobs(id),
+  type                    text,  -- 'load', 'unload', 'packing', 'travel', 'materials', etc.
+  amount                  jsonb,  -- { calculatedValue, overriddenValue, isOverridden, reason, unit }
+  hourly_rate             jsonb,  -- Same structure as amount
+  hours                   jsonb,
+  number_of_crew          jsonb,
+  number_of_trucks        jsonb,
+  driving_time_mins       jsonb,
+  origin_handicaps        jsonb,
+  destination_handicaps   jsonb,
+  stops_handicaps         jsonb,
+  minimum_time            jsonb,
+  fuel_cost               jsonb,
+  milage_cost             jsonb,
+  item_cost               jsonb,
+  item_quantity           jsonb,
+  custom_name             text,
+  custom_price            jsonb,
+  tips                    numeric,
+  is_billable             jsonb,
+  updated_at              timestamptz
+);
+```
+
+#### **6. job_schedule** (Calendar Integration)
+```sql
+CREATE TABLE job_schedule (
+  id              bigint PRIMARY KEY,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  job_id          bigint REFERENCES jobs(id),
+  scheduled_date  timestamptz,
+  start_time      time,
+  end_time        time,
+  updated_at      timestamptz
+);
+```
+
+### **User Management & Permissions**
+
+#### **7. users** (System Users)
+```sql
+CREATE TABLE users (
+  id              bigint PRIMARY KEY,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  username        text,
+  first_name      text,
+  last_name       text,
+  email           text,
+  phone           text UNIQUE,
+  status          text,      -- 'active', 'inactive', 'pending'
+  profile_image   text,
+  updated_at      timestamptz
+);
+```
+
+#### **8. roles** (Role-Based Access Control)
+```sql
+CREATE TABLE roles (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  role          text,       -- 'admin', 'sales', 'dispatch', 'crew_leader', etc.
+  permissions   jsonb,      -- Detailed permission structure
+  updated_at    timestamptz
+);
+```
+
+#### **9. user_roles** (User-Role Assignment)
+```sql
+CREATE TABLE user_roles (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  user_id       bigint REFERENCES users(id),
+  role_id       bigint REFERENCES roles(id),
+  assigned_at   timestamptz
+);
+```
+
+### **Crew & Fleet Management**
+
+#### **10. crews** (Crew Teams)
+```sql
+CREATE TABLE crews (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  name          bigint,     -- Crew identifier
+  date          date,       -- Crew formation date
+  updated_at    bigint
+);
+```
+
+#### **11. crew_movers** (Crew Member Assignment)
+```sql
+CREATE TABLE crew_movers (
+  -- Junction table for crew-mover relationships
+  -- (Schema details retrieved separately)
+);
+```
+
+#### **12. movers** (Individual Crew Members)
+```sql
+CREATE TABLE movers (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  name          text,
+  email         text,
+  phone         text,
+  status        text,      -- 'available', 'assigned', 'offline'
+  updated_at    timestamptz
+);
+```
+
+#### **13. trucks** (Vehicle Fleet)
+```sql
+CREATE TABLE trucks (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  name          text,      -- Truck identifier
+  size          text,      -- 'small', 'medium', 'large'
+  status        text,      -- 'available', 'in_use', 'maintenance'
+  updated_at    timestamptz
+);
+```
+
+#### **14. crew_trucks** (Crew-Vehicle Assignment)
+```sql
+CREATE TABLE crew_trucks (
+  -- Junction table for crew-truck relationships
+  -- (Schema details retrieved separately)
+);
+```
+
+### **Operations & Communication**
+
+#### **15. activity_logs** (System Activity Tracking)
+```sql
+CREATE TABLE activity_logs (
+  id                bigint PRIMARY KEY,
+  created_at        timestamptz DEFAULT now(),
+  lead_id           bigint REFERENCES leads(id),
+  quote_id          bigint REFERENCES quotes(id),
+  user_id           bigint REFERENCES users(id),
+  activity_type     text NOT NULL,
+  direction         text,           -- 'inbound', 'outbound'
+  title             text NOT NULL,
+  content           text,
+  contact_method    text,           -- 'phone', 'email', 'sms'
+  contact_value     text,           -- Phone number or email used
+  metadata          jsonb,          -- Additional structured data
+  display_location  jsonb           -- Where this activity should appear
+);
+```
+
+#### **16. notifications** (System Notifications)
+```sql
+CREATE TABLE notifications (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  type          text,
+  message       text,
+  quote_id      bigint REFERENCES quotes(id)
+);
+```
+
+#### **17. notification_recipients** (Notification Delivery)
+```sql
+CREATE TABLE notification_recipients (
+  -- Junction table for notification delivery tracking
+  -- (Schema details retrieved separately)
+);
+```
+
+#### **18. tasks** (Task Management)
+```sql
+CREATE TABLE tasks (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  user_id       bigint REFERENCES users(id),
+  task_name     text,
+  description   text,
+  due_date      text,        -- String representation of due date
+  status        text,        -- 'pending', 'in_progress', 'completed'
+  updated_at    timestamptz
+);
+```
+
+#### **19. follow_ups** (Sales Follow-up Tracking)
+```sql
+CREATE TABLE follow_ups (
+  id              bigint PRIMARY KEY,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  quote_id        bigint REFERENCES quotes(id),
+  user_id         bigint REFERENCES users(id),
+  follow_up_date  timestamptz,
+  method          text,        -- 'phone', 'email', 'text'
+  notes           text,
+  status          text,        -- 'scheduled', 'completed', 'missed'
+  updated_at      timestamptz
+);
+```
+
+### **Customer Service & Feedback**
+
+#### **20. customer_service_claims** (Claims Management)
+```sql
+CREATE TABLE customer_service_claims (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  job_id        bigint REFERENCES jobs(id),
+  claim_date    timestamptz,
+  claim_type    text,        -- 'damage', 'delay', 'service_issue'
+  details       text,
+  status        text,        -- 'open', 'investigating', 'resolved', 'closed'
+  resolution    text,
+  resolved_by   bigint,      -- User ID who resolved the claim
+  updated_at    timestamptz
+);
+```
+
+#### **21. customer_feedback** (Customer Satisfaction)
+```sql
+CREATE TABLE customer_feedback (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  job_id        bigint REFERENCES jobs(id),
+  rating        bigint,      -- 1-5 or 1-10 scale
+  comments      text
+);
+```
+
+#### **22. submitted_reviews** (Review System)
+```sql
+CREATE TABLE submitted_reviews (
+  id              bigint PRIMARY KEY,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  review_type     jsonb NOT NULL,     -- Review platform and type
+  review_answers  jsonb,              -- Review responses
+  estimate_id     text UNIQUE         -- Link to original estimate
+);
+```
+
+### **Financial Operations**
+
+#### **23. job_accounting** (Financial Tracking)
+```sql
+CREATE TABLE job_accounting (
+  -- Financial records for jobs
+  -- (Schema details retrieved separately)
+);
+```
+
+#### **24. job_accounting_charges** (Detailed Financial Breakdown)
+```sql
+CREATE TABLE job_accounting_charges (
+  -- Detailed charge breakdown for accounting
+  -- (Schema details retrieved separately)
+);
+```
+
+#### **25. job_materials** (Materials & Supplies Tracking)
+```sql
+CREATE TABLE job_materials (
+  -- Materials used per job
+  -- (Schema details retrieved separately)
+);
+```
+
+### **Inventory & Reference Data**
+
+#### **26. inventory_items** (Master Inventory List)
+```sql
+CREATE TABLE inventory_items (
+  id            bigint PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  item          text,               -- Item name
+  cubic_ft      double precision,   -- Cubic feet per item
+  weight        double precision    -- Weight per item
+);
+```
+
+---
+
+### **Database Relationship Summary**
+
+**Core Flow**: `leads` → `quotes` → `jobs` → `job_charges` + `job_addresses` + `job_schedule`
+
+**User Management**: `users` ↔ `user_roles` ↔ `roles`
+
+**Crew Operations**: `crews` ↔ `crew_movers` ↔ `movers` + `crew_trucks` ↔ `trucks`
+
+**Activity Tracking**: `activity_logs` tracks all system interactions with references to leads, quotes, and users
+
+**Customer Service**: `customer_service_claims` + `customer_feedback` + `submitted_reviews` all reference jobs
+
+**Financial**: `job_accounting` + `job_accounting_charges` + `job_materials` provide complete financial tracking
+
+---
+
+## **DATABASE AUTOMATION (Triggers, Functions & Cron Jobs)**
+
+The following automated database functions, triggers, and scheduled jobs are already implemented in your Supabase database:
+
+### **Triggers & Functions**
+
+#### **1. Lead Creation Activity Logging**
+```sql
+-- Trigger: leads_creation_activity_log_trigger (AFTER INSERT on leads)
+-- Function: process_lead_creation_log()
+```
+**Purpose**: Automatically logs all new lead creation to `activity_logs` table
+- Captures lead creation with source tracking (Website, CRM, etc.)
+- Records metadata including name, phone, email
+- Sets display locations for user feeds and dashboard
+- Uses current user context when available
+
+#### **2. Quote Assignment Notifications**
+```sql
+-- Trigger: quote_assignment_notification (AFTER INSERT/UPDATE on quotes)
+-- Function: handle_assignment_notifications()
+```
+**Purpose**: Manages lead/opportunity assignment notifications
+- **New Unassigned Leads**: Creates notifications for all users when new leads are created without assignment
+- **Lead Assignments**: Sends notifications to specific users when leads are assigned to them
+- **Opportunity Assignments**: Handles opportunity-level assignments with appropriate messaging
+- **Self-Claimed Logic**: Skips notifications when `is_self_claimed = true`
+- Creates entries in `notifications` and `notification_recipients` tables
+
+#### **3. Unassigned Lead Notification Cleanup**
+```sql
+-- Trigger: mark_unassigned_lead_notifications_trigger (AFTER UPDATE on quotes)  
+-- Function: mark_unassigned_lead_notifications_as_read()
+```
+**Purpose**: Cleans up notifications when unassigned leads get claimed
+- Marks "NEW_UNASSIGNED_LEAD" notifications as read when someone claims the lead
+- Prevents notification spam by clearing outdated unassigned alerts
+- Uses lead name matching to find relevant notifications
+
+#### **4. User Context Management**
+```sql
+-- Function: set_current_user(user_id bigint)
+```
+**Purpose**: Sets application-level user context for audit trails
+- Used to track which user performed database operations
+- Enables proper activity logging with user attribution
+- Sets PostgreSQL session variable for trigger access
+
+#### **5. Hot Lead Auto-Downgrade**
+```sql
+-- Function: downgrade_hot_lead()
+```
+**Purpose**: Automatically downgrades "hot lead" status after time threshold
+- Converts `status = 'hot lead'` to `status = 'lead'` after 5 minutes
+- Maintains lead urgency while preventing stale hot leads
+- Called by scheduled cron job
+
+### **Scheduled Jobs (Cron)**
+
+#### **1. Hot Lead Downgrade Job**
+```sql
+-- Job: downgrade-hot-leads
+-- Schedule: * * * * * (every minute)
+-- Command: SELECT public.downgrade_hot_lead()
+-- Status: ACTIVE
+```
+**Purpose**: Runs the hot lead downgrade function every minute
+- Ensures timely conversion of hot leads to regular leads
+- Maintains lead pipeline urgency and accuracy
+- Prevents hot leads from staying "hot" indefinitely
+
+### **Edge Functions**
+Currently no Edge Functions are deployed to the project.
+
+---
+
+### **Notification System Architecture**
+
+The database implements a complete notification system:
+
+**Flow**: `Trigger Event` → `Function Processing` → `notifications` table → `notification_recipients` table
+
+**Key Features**:
+- **Multi-user notifications**: Unassigned leads notify all active users
+- **Targeted notifications**: Assignments only notify the assigned user  
+- **Self-claim detection**: Prevents notification spam for self-assignments
+- **Automatic cleanup**: Marks notifications as read when leads are claimed
+- **Rich metadata**: Notifications include lead names and context
+
+**Notification Types**:
+- `NEW_UNASSIGNED_LEAD`: New lead available for claiming
+- `LEAD_ASSIGNED`: Lead assigned to specific user
+- `OPPORTUNITY_ASSIGNED`: Opportunity assigned to specific user
+
+### **Activity Logging System**
+
+Comprehensive activity tracking with:
+- **Automatic lead creation logging**: Every new lead logged with metadata
+- **User attribution**: Tracks which user performed actions  
+- **Display targeting**: Logs appear in appropriate UI locations
+- **Rich metadata**: Full context preservation for audit trails
+
+---
 - **Faster Development**: New features and integrations automatically work across all applications
 
 #### **Shared Business Logic Examples:**
@@ -193,6 +680,58 @@ All pricing data uses a comprehensive tracking structure to maintain estimate in
   "estimatedValue": 7
 }
 ```
+
+**Advanced Scheduling & Pricing System:**
+
+**Customer Quote Display (Simplified View):**
+- **Drive Time Between Stops**: Only show drive time between customer locations (if multiple stops)
+- **Total Estimate Range**: "2-4 hours with 3 movers and 1 truck"
+- **Price Breakdown**: Base rate, additional movers/trucks, total estimate
+- **Simple Messaging**: Keep customer-facing estimates clean and understandable
+- **No Office Drive Time**: Customers don't see or pay for office→job or job→office travel
+
+**Internal Scheduling Breakdown (CRM/Dispatch View):**
+- **Full Drive Time Calculation**: Office → First Stop → Each Additional Stop → Final Destination → Office
+- **Drive Time for Scheduling**: Calculated from last job location (not office) for day planning
+- **Job Component Breakdown**:
+  - **Pack Time**: Based on inventory and packing requirements
+  - **Load Time**: 60% of total move time (load/unload split)
+  - **Drive Time**: Between all locations, traffic-adjusted
+  - **Unload Time**: 40% of total move time
+  - **Unpack Time**: If selected, based on service level
+- **Day Planning**: Each component timed for multi-job scheduling
+- **Overtime Alerts**: System warns when jobs likely to run over estimated time
+
+**Advanced Pricing Granularity:**
+
+**Modular Charge System:**
+- **Base Hourly Rate**: $169/hr for 2 men + truck
+- **Additional Movers**: $60/hr per extra crew member
+- **Additional Trucks**: $30/hr per extra vehicle
+- **Stair Charges**: Applied only to load/unload portions affected
+- **Handicap Accessibility**: Specific to rooms/items requiring special handling
+- **Drive Time**: Only between customer locations (not office travel)
+- **Packing Services**: Itemized by room or service level
+- **Special Items**: Piano, gun safe, artwork - individual pricing
+
+**Sales Override System:**
+- **Modal Interface**: Click any charge component to edit manually
+- **Individual Adjustments**: Modify each pricing element independently
+- **Override Tracking**: Log all manual changes with sales rep attribution
+- **Approval Workflow**: Manager approval for significant discount overrides
+- **Quote Accuracy**: Auto-quote system designed for 90-95% accuracy
+
+**Real-Time Job Monitoring:**
+- **Component Tracking**: Monitor actual vs estimated time for each job phase
+- **Alert System**: Notify dispatch when load time exceeds estimate (e.g., 2:15 planned, currently at 2:30)
+- **Next Job Notification**: Automatic alerts to subsequent customers about potential delays
+- **Performance Analytics**: Track estimating accuracy and crew efficiency by component
+
+**Enhanced Accessibility & Inventory Integration:**
+- **Room-Specific Stair Charges**: Apply accessibility fees only to affected rooms/items
+- **Inventory-Based Accessibility**: Charge handicap fees only for items requiring special handling
+- **Granular Item Tracking**: Track which specific items need stairs/elevator/long walk handling
+- **Dynamic Pricing Adjustment**: Modify charges based on actual item locations and requirements
 
 **Charge Tracking Fields:**
 - **`initialValue`**: Original calculated estimate
@@ -609,11 +1148,37 @@ Complete historical record for each customer showing every action:
 - System health and integration status
 - Competitive intelligence and market updates
 
+**Visual Sales Pipeline Dashboard**:
+Interactive funnel visualization showing lead progression through all status stages:
+
+*Pipeline Status Flow:*
+```
+Hot Lead → Lead → Opportunity → Booked → Confirmed → Complete → Reviewed
+```
+
+*Visual Pipeline Features:*
+- **Drag-and-Drop Interface**: Move customers between pipeline stages visually
+- **Status Counts**: Live count of customers in each pipeline stage with values
+- **Conversion Rates**: Percentage conversion between each stage
+- **Pipeline Velocity**: Average time customers spend in each stage
+- **Revenue Projection**: Total potential revenue visible in each pipeline stage
+- **Bottleneck Identification**: Stages with highest drop-off or longest duration
+- **Daily Pipeline Movement**: Visual arrows showing customers moving between stages
+
+*Pipeline Stage Details (Click to Expand):*
+- **Hot Lead**: Fresh leads under 5 minutes old with high urgency indicators
+- **Lead**: Claimed leads being qualified by sales team
+- **Opportunity**: Qualified prospects with quotes generated/sent
+- **Booked**: Customers who accepted quotes with scheduled move dates
+- **Confirmed**: Jobs with crew assigned and final details confirmed
+- **Complete**: Finished moves awaiting final payment and review collection
+- **Reviewed**: Completed jobs with customer feedback collected
+
 **Role-Based Dashboard Views**:
-- **Owner/Executive**: High-level KPIs, financial performance, strategic metrics
-- **Operations Manager**: Crew scheduling, job progress, resource allocation
-- **Sales Manager**: Lead pipeline, conversion rates, booking targets
-- **Customer Service**: Active issues, review responses, communication queue
+- **Owner/Executive**: High-level KPIs, financial performance, strategic metrics + full pipeline overview
+- **Operations Manager**: Crew scheduling, job progress, resource allocation + booked/confirmed pipeline focus
+- **Sales Manager**: Lead pipeline, conversion rates, booking targets + detailed pipeline management
+- **Customer Service**: Active issues, review responses, communication queue + complete/reviewed pipeline focus
 
 #### **Calendar System:**
 
@@ -781,6 +1346,8 @@ Complete historical record for each customer showing every action:
 - **Lead Information Display**:
   - Contact details (name, phone, email)
   - Lead source and acquisition date/time
+  - **UTM Attribution Data**: Source, medium, campaign, content, term parameters
+  - **Campaign Tracking**: Which ad/landing page generated the lead
   - Move details (size, addresses, preferred date)
   - Initial notes and special requirements
   - Lead score/priority (hot lead, warm lead, cold lead)
@@ -811,6 +1378,55 @@ Complete historical record for each customer showing every action:
 - **Quote Preparation**: Transition lead to quote generation process
 - **Follow-up Scheduling**: Automated task creation for callback appointments
 
+*Automated Sales Follow-Up System*:
+
+**Initial Lead Follow-Up Sequence (Days 1-2)**:
+- **Day 1**: Call lead twice (morning & afternoon), send text and email
+- **Day 2**: One additional call if no response, follow-up text
+- **Response Tracking**: If customer responds to any touchpoint, move to quote follow-up sequence
+
+**Post-Quote Follow-Up System (Distance-Based Timing)**:
+- **Same Day Quote**: Text follow-up same day, call next day if move is within 48 hours
+- **Short Notice (2-7 days)**: Call next day, text day 3, final call day before move
+- **Medium Range (1-4 weeks)**: 5 follow-up touchpoints over 2 weeks (call, text, call, text, call), then urgency sequence
+- **Long Range (30+ days)**: Monthly nurture check-ins until 30 days out, then switch to urgency sequence
+
+**5-Touch Follow-Up Sequence (After Quote Delivery)**:
+1. **Same Day**: Text follow-up with quote recap and next steps
+2. **Day 2**: Phone call to discuss questions and address concerns  
+3. **Day 4**: Text with additional value points or customer testimonials
+4. **Day 7**: Phone call with limited-time incentive or seasonal pricing
+5. **Day 10**: Final follow-up call before switching to long-term nurture or urgency sequence
+
+**Urgency Sequence (Final 30 Days Before Move)**:
+- **30 Days Out**: "Hi [Name], your move is coming up in a month. Ready to secure your crew?"
+- **14 Days Out**: "Only 2 weeks until your move date. Most dates book up 10-14 days ahead."
+- **7 Days Out**: "Final week before your move! Last chance to guarantee crew availability."
+- **3 Days Out**: "Your move is in 3 days. We may have last-minute availability if you need us."
+- **Day Before**: Final outreach for emergency/last-minute bookings
+
+**Custom Follow-Up Reasons & Scheduling**:
+- **Waiting for Approval**: Set follow-up based on their timeline (spouse approval, company approval, etc.)
+- **Budget Concerns**: Schedule follow-up with financing options or seasonal discounts
+- **Comparing Options**: 1-week follow-up with competitive comparison points
+- **Not Ready Yet**: Monthly nurture sequence until they indicate readiness
+- **Wrong Timing**: Set specific follow-up date based on their preferred timeline
+
+**Follow-Up Reason Tracking**:
+- **Dropdown Options**: Budget, waiting for approval, comparing companies, wrong timing, need to think about it
+- **Custom Notes**: Specific details about their situation and next steps
+- **Automated Scheduling**: System calculates optimal next contact time based on reason selected
+- **Personalized Messaging**: Next follow-up references previous conversation and addresses specific concern
+
+**Smart Follow-Up Automation Features**:
+- **Move Date Intelligence**: System automatically calculates follow-up timing based on customer's move date
+- **Anti-Spam Protection**: Prevents over-communication by spacing touchpoints appropriately
+- **Channel Rotation**: Alternates between calls, texts, and emails to avoid monotony
+- **Urgency Escalation**: Automatically increases follow-up frequency as move date approaches
+- **Response Triggers**: Pauses automated sequence when customer responds, resumes if no booking after 48 hours
+- **Territory Coordination**: Ensures only assigned sales rep contacts customer to avoid confusion
+- **Seasonal Adjustments**: Modifies messaging and timing based on peak/off-peak moving seasons
+
 *Lead Status Management:*
 - **Status Updates**: Real-time status changes with timestamp tracking
 - **Activity Logging**: All calls, emails, texts automatically recorded
@@ -835,7 +1451,7 @@ Complete historical record for each customer showing every action:
 **Performance Tracking**:
 - **Individual Metrics**: Leads claimed, contacted, converted per sales rep
 - **Team Performance**: Conversion rates, average time to quote, lead response times
-- **Lead Source Analysis**: ROI and conversion rates by acquisition channel
+- **Lead Source Analysis**: ROI and conversion rates by acquisition channel, UTM campaign performance, and DNI call tracking
 - **Pipeline Velocity**: Time from lead to quote to booking measurements
 
 #### **Customer Management Module:**
@@ -867,6 +1483,24 @@ Complete historical record for each customer showing every action:
   - Repeat customer identification and targeting
   - Customer service issue resolution and support
 
+**Customer Page Navigation (Status-Based Access Control)**:
+
+**Lead Status - Single Page Access:**
+- **customer/sales page ONLY**: Only accessible page when customer status is "Lead"
+- **Restricted Navigation**: No access to quotes, accounting, or photos until status progresses
+- **Sales Focus**: Lead qualification and conversion activities only
+
+**Opportunity Status - Expanded Access:**
+- **customer/quotes page**: View and manage quote details, pricing breakdown, modifications
+- **customer/accounting page**: Financial information, payment tracking, invoicing
+- **customer/photos page**: Job photos, before/after images, damage documentation
+- **customer/sales page**: Continue sales activities and pipeline management
+
+**Critical Modal Functionality Reference:**
+- **Create Opportunity Modal**: The existing modal functionality is EXACTLY what we want replicated in the real app
+- **Create Lead Modal**: The existing modal functionality is EXACTLY what we want replicated in the real app
+- **Important**: These modals were specifically designed and should be used as the exact template for implementation
+
 **Customer Information Display**:
 
 *Contact and Basic Details:*
@@ -888,6 +1522,18 @@ Complete historical record for each customer showing every action:
 - Invoice history and payment transactions
 - Outstanding balances and collection status
 
+*Inventory Management:*
+- **Comprehensive Furniture Database**: Complete cube sheet with every type of furniture item
+- **Yembo AI Integration**: Automated inventory detection from customer photos
+- **CRM Inventory Editor**: Full editing capabilities for adding/removing/modifying items
+- **Customer Portal Access**: Customers can directly edit their inventory before move
+- **Item Categorization**: Organized by room, size, weight, and special handling requirements
+- **Visual Documentation**: Photo attachments for specialty items and custom furniture
+- **Cube/Weight Calculations**: Automatic space and weight calculations for accurate pricing
+- **Special Instructions**: Item-specific handling notes and requirements
+- **Inventory History**: Track changes made by both staff and customers with timestamps
+- **Real-Time Sync**: Inventory changes instantly update quote calculations and crew requirements
+
 *Communication History:*
 - Complete interaction timeline (calls, emails, texts, in-person meetings)
 - Quote delivery and customer response tracking
@@ -901,6 +1547,16 @@ Complete historical record for each customer showing every action:
 - **Quote Modifications**: Re-rating, pricing adjustments, service changes
 - **Booking Confirmation**: Convert opportunities to confirmed jobs
 - **Scheduling Coordination**: Date confirmation and crew assignment
+
+*Inventory Management Actions:*
+- **Yembo Photo Processing**: Upload customer photos for automated inventory detection
+- **Manual Inventory Entry**: Add items manually using comprehensive furniture database
+- **Bulk Item Management**: Import/export inventory lists, copy from previous jobs
+- **Customer Portal Generation**: Create secure links for customers to edit their inventory
+- **Inventory Validation**: Review and approve customer-submitted inventory changes
+- **Special Items Flagging**: Mark items requiring special handling, equipment, or crew
+- **Quote Recalculation**: Automatic pricing updates when inventory changes
+- **Crew Requirement Updates**: Adjust crew size and equipment based on inventory changes
 
 *Communication Management:*
 - **Outreach Campaigns**: Automated and manual follow-up sequences
@@ -926,6 +1582,128 @@ Complete historical record for each customer showing every action:
 - **Operations**: Access to confirmed jobs and scheduling information
 - **Customer Service**: Complete access for issue resolution and post-move support
 - **Management**: Full visibility for oversight and strategic customer analysis
+
+#### **Sales Pipeline Visualization & Management:**
+
+**Purpose**: Dedicated visual pipeline management for tracking lead progression from initial contact through job completion. Advanced sales funnel with detailed analytics and conversion optimization tools.
+
+**Access Control**: 
+- **Sales Team**: Full pipeline management and lead progression tracking
+- **Sales Management**: Advanced analytics, conversion optimization, and team performance
+- **Executive**: High-level pipeline metrics and revenue forecasting
+- **Operations**: Limited access to booked/confirmed stages for job preparation
+
+**Main Pipeline Interface**:
+
+**Visual Funnel Display**:
+- **Kanban-Style Columns**: Each pipeline stage displays as a column with customer cards
+- **Customer Cards**: Show name, quote value, days in stage, next action, and priority level
+- **Drag-and-Drop Movement**: Visually move customers between pipeline stages
+- **Color-Coded Priorities**: Hot (red), warm (orange), cold (blue), stalled (gray)
+- **Quick Actions**: Call, email, text, schedule appointment directly from pipeline cards
+- **Revenue Totals**: Sum of quote values displayed at top of each pipeline column
+
+**Pipeline Status Columns**:
+
+1. **Hot Lead Column**:
+   - Fresh leads under 5 minutes old
+   - Auto-highlighted with urgency indicators
+   - Lead source and initial contact method displayed
+   - Quick claim buttons for sales team members
+
+2. **Lead Column**:
+   - Claimed leads being actively qualified
+   - Shows assigned sales rep and claim timestamp
+   - Contact attempt counter and last interaction date
+   - Status indicators: contacted, in progress, qualified
+
+3. **Opportunity Column**:
+   - Qualified prospects with quotes generated
+   - Quote amount, send date, and follow-up status
+   - Days since quote sent with color-coded aging
+   - Re-quote and modification quick actions
+
+4. **Booked Column**:
+   - Accepted quotes with confirmed move dates
+   - Service date, crew requirements, and special notes
+   - Contract status and deposit collection indicators
+   - Pre-move preparation task tracking
+
+5. **Confirmed Column**:
+   - Jobs with crew assigned and logistics finalized
+   - Crew assignment, truck allocation, and final details
+   - Pre-move customer communication status
+   - Ready-to-go indicators for operations team
+
+6. **Complete Column**:
+   - Finished moves awaiting final steps
+   - Payment status, invoice generation, and collection
+   - Review request sent status and response tracking
+   - Post-move follow-up task indicators
+
+7. **Reviewed Column**:
+   - Fully completed customer lifecycle
+   - Customer satisfaction scores and feedback
+   - Referral potential and repeat business indicators
+   - Long-term relationship management status
+
+**Advanced Pipeline Analytics**:
+
+**Conversion Tracking**:
+- **Stage-to-Stage Conversion Rates**: Percentage of customers progressing between each stage
+- **Drop-off Analysis**: Identify stages where customers are lost and reasons
+- **Time in Stage**: Average duration customers spend in each pipeline stage
+- **Velocity Trends**: Speed of pipeline movement over time periods
+- **Individual Performance**: Conversion rates per sales team member
+- **Lead Source Performance**: Which sources produce highest converting leads
+
+**Revenue Analytics**:
+- **Pipeline Revenue**: Total potential revenue in each stage and overall pipeline
+- **Weighted Revenue**: Revenue projections based on stage conversion probabilities
+- **Monthly Forecasting**: Predicted bookings and revenue based on current pipeline
+- **Average Deal Size**: Quote values by stage, lead source, and sales rep
+- **Revenue Velocity**: Speed of revenue movement through pipeline stages
+
+**Performance Optimization**:
+- **Bottleneck Identification**: Stages with longest customer duration or highest drop-off
+- **A/B Testing**: Test different follow-up sequences and measure conversion impact
+- **Best Practice Analysis**: Identify actions that correlate with higher conversion rates
+- **Coaching Insights**: Individual sales rep performance data for management feedback
+- **Process Improvement**: Recommendations for pipeline stage optimization
+
+**Pipeline Management Tools**:
+
+**Bulk Actions**:
+- **Mass Follow-up**: Send emails or texts to multiple customers in same stage
+- **Batch Updates**: Move multiple customers between stages simultaneously
+- **Campaign Creation**: Launch targeted campaigns for customers in specific stages
+- **Task Assignment**: Create follow-up tasks for multiple customers at once
+
+**Automation Rules**:
+- **Auto-Progression**: Automatically move customers based on actions (e.g., quote sent → opportunity)
+- **Stale Lead Alerts**: Notify sales reps when customers haven't been contacted within timeframes
+- **Stage Duration Limits**: Automatic alerts when customers stay in stages too long
+- **Priority Escalation**: Automatically elevate high-value leads that need attention
+
+**Filtering and Search**:
+- **Multi-Filter Options**: Filter by sales rep, lead source, quote value, date ranges, stage duration
+- **Search Functionality**: Find specific customers across all pipeline stages
+- **Saved Views**: Create and save custom pipeline views for different scenarios
+- **Quick Filters**: One-click filters for common views (overdue follow-ups, high-value, etc.)
+
+**Integration Points**:
+- **CRM Data Sync**: Real-time sync with customer records and interaction history
+- **Task Management**: Pipeline actions automatically create follow-up tasks
+- **Calendar Integration**: Schedule appointments directly from pipeline interface
+- **Communication Tracking**: All calls, emails, texts logged and visible in pipeline
+- **Quote System**: Direct access to quote generation and modification tools
+- **Dashboard Metrics**: Pipeline data feeds into main dashboard KPIs
+
+**Mobile Pipeline Access**:
+- **Responsive Interface**: Full pipeline management on mobile devices
+- **Touch Gestures**: Swipe and tap actions for pipeline movement
+- **Quick Actions**: One-tap calling, texting, and emailing from mobile pipeline
+- **Offline Sync**: Pipeline updates sync when mobile connection is restored
 
 #### **Dispatch Management System:**
 
@@ -975,7 +1753,10 @@ Complete historical record for each customer showing every action:
 *Truck and Equipment Allocation:*
 - **Vehicle Status**: Available, assigned, in-use, maintenance, out-of-service
 - **Truck Specifications**: Size, capacity, special equipment mounted
-- **Location Tracking**: Current position and estimated return times
+- **GPS Location Tracking**: Real-time position with address and estimated return times
+- **Live Vehicle Data**: Fuel level, mileage, engine diagnostics, driver behavior alerts
+- **Route Monitoring**: Current route vs planned route with traffic-adjusted ETAs
+- **Geofence Alerts**: Automatic notifications when trucks arrive/depart job sites
 - **Maintenance Alerts**: Scheduled service dates and inspection requirements
 - **Equipment Inventory**: Dollies, straps, blankets, piano boards, safe equipment
 
@@ -1016,10 +1797,15 @@ Complete historical record for each customer showing every action:
 - **Emergency Alerts**: Immediate notification system for urgent situations
 
 *Operational Intelligence:*
-- **Route Optimization**: Integrate with Google Maps for efficient crew routing
+- **GPS Fleet Tracking**: Real-time vehicle locations with live dashboard monitoring
+- **Route Optimization**: Integrate with Google Maps for efficient crew routing and actual vs planned route analysis
+- **Customer Tracking Portal**: Secure links for customers to track assigned truck location and ETA
+- **Vehicle Diagnostics**: Live fuel consumption, mileage, and engine health monitoring
+- **Driver Behavior Analytics**: Speed monitoring, hard braking, and safe driving score tracking
+- **Geofencing Automation**: Automatic job site arrival/departure notifications and time tracking
 - **Weather Monitoring**: Weather alerts affecting job scheduling and safety
 - **Traffic Integration**: Real-time traffic data for accurate arrival estimates
-- **Performance Analytics**: Crew efficiency and customer satisfaction tracking
+- **Performance Analytics**: Crew efficiency, route adherence, and customer satisfaction tracking
 
 **Usability Enhancements**:
 - **One-Click Actions**: Common assignments (standard crew + truck) with single click
@@ -1047,10 +1833,45 @@ Complete historical record for each customer showing every action:
 - Simple notes and communication log
 
 **Review Management**:
-- Send automated review requests after completed jobs (email/SMS)
-- Monitor Google Reviews, Yelp, Facebook, and other platforms
-- Respond to reviews (both positive and negative)
-- Track overall rating trends and identify issues
+
+*Automated Review Campaign System*:
+- **Bannerbear Integration**: Generate personalized review request images featuring crew holding custom poster with customer name
+- **Multi-Channel Delivery**: Send via email and SMS with crew names mentioned in message text: "Hi [Customer Name], your crew ([Crew Names]) would love to hear about your moving experience!"
+- **Link Tracking**: Monitor if customers open email/SMS and click review link with UTM parameters and pixel tracking
+- **Sentiment Landing Page**: Custom review portal with thumbs up/middle/down rating system and company branding
+- **Trigger Automation**: Automatically initiated upon job completion status change in CRM
+
+*Review Routing & Response System*:
+- **Positive Reviews (Thumbs Up)**: Direct redirect to Google Reviews for public posting
+- **Negative/Neutral Reviews (Thumbs Down/Middle)**: Internal questionnaire for detailed feedback
+- **Platform Monitoring**: Track Google Reviews, Yelp, Facebook, and other review platforms
+- **Review Response Management**: Automated and manual responses to both positive and negative reviews
+
+*Automated Follow-Up Campaigns*:
+- **15-Minute Follow-Up**: If customer clicks positive (thumbs up) but doesn't return from Google redirect, send "Did you have any issues completing your review? We're here to help!" message
+- **24-Hour Follow-Up**: Second reminder with direct Google review link: "Hi [Customer Name], we noticed you didn't finish leaving your review. Could you take 30 seconds to help future customers by sharing your experience?"
+- **48-Hour Final Follow-Up**: Last courteous attempt: "This is our final reminder about your review. We'd really appreciate if you could share your moving experience to help others. [Google Review Link]"
+- **Campaign Termination**: After final follow-up, customer is removed from review campaign sequence
+- **Manual Review Verification**: Staff manually check Google Reviews periodically to mark campaigns as completed when reviews are found
+
+*Review Completion Tracking & Agent Monitoring*:
+- **Dedicated Review Agent**: Staff member assigned to monitor Google Reviews in real-time during business hours
+- **Smart Matching System**: Agent matches new Google reviews to active campaigns using:
+  - Customer name similarity matching (John Smith → J. Smith, John S., etc.)
+  - Review timing correlation (reviews appearing within 24 hours of positive rating)
+  - Review content keywords (mentions crew names, moving company specifics)
+  - Sequential review analysis (next review in chronological order after redirect)
+- **Campaign Completion Workflow**: Agent marks campaigns complete when review match is identified, stopping follow-up sequence
+- **Google My Business Dashboard**: Real-time monitoring of new reviews with campaign cross-reference tools
+- **Automated Alerts**: System notifies review agent when positive ratings are submitted for immediate monitoring
+- **Backup Manual Process**: Weekly bulk review matching for any missed connections
+- **Opt-Out Mechanism**: Customers can reply "STOP" to SMS or click unsubscribe to end follow-up sequence
+
+*Review Analytics & Insights*:
+- **Completion Funnel**: Track from initial send → open → click → sentiment → Google posting
+- **Crew Performance**: Individual crew review ratings and customer feedback
+- **Platform Performance**: Review distribution across Google, Yelp, Facebook platforms
+- **Trend Analysis**: Overall rating trends, sentiment patterns, and issue identification
 
 **Issue Resolution**:
 - Customer complaints and problems intake
@@ -1077,6 +1898,230 @@ Complete historical record for each customer showing every action:
 - Links to customer records and job history
 - Task creation for follow-ups
 - Basic reporting and metrics tracking
+
+#### **AI Voice Center & Automation Hub:**
+
+**Purpose**: Centralized command center for AI-powered voice assistants, automated customer interactions, and future business automation agents. Manages voice AI call handling with monitoring and optimization capabilities.
+
+**Access Control**: 
+- **AI Operations Team**: Full voice AI management and monitoring
+- **Management**: Performance oversight and automation strategy
+- **Customer Service**: Escalation handling and AI training feedback
+- **Sales Team**: Lead qualification AI configuration and monitoring
+
+**Core AI Voice Assistant Features**:
+
+**Voice AI Call Handling (Retell/Ultravox Integration)**:
+- **Inbound Call Management**: AI answers calls 24/7 with natural conversation capabilities
+- **Lead Qualification**: Automated collection of move details, dates, addresses, and contact info
+- **Quote Scheduling**: AI schedules estimate appointments and captures customer availability
+- **Customer Support**: Answer common questions about services, pricing, and process
+- **Call Routing**: Smart transfer to human agents when needed with full context handoff
+- **Multi-Language Support**: Spanish and English conversation capabilities
+- **Voice Recognition**: Natural language processing for complex customer requests
+
+**AI Voice Monitoring Dashboard**:
+
+*Real-Time Call Activity:*
+- **Live Call Status**: Currently active AI calls with conversation progress
+- **Call Queue**: Incoming calls being handled by voice AI vs human agents
+- **Conversation Flow**: Real-time transcript of ongoing AI conversations
+- **Escalation Alerts**: Immediate notifications when AI transfers calls to humans
+- **Performance Metrics**: AI success rate, call completion, and customer satisfaction
+- **Response Time**: Average time to answer and handle customer inquiries
+
+*Call Analytics & Insights:*
+- **Daily Call Volume**: Total calls handled by AI vs human agents
+- **Conversation Topics**: Most common customer questions and requests
+- **Lead Conversion**: AI-generated leads that convert to bookings
+- **Customer Satisfaction**: Voice AI interaction ratings and feedback
+- **Script Performance**: Which conversation flows work best
+- **Drop-off Analysis**: Where customers hang up during AI interactions
+
+**Voice AI Configuration & Training**:
+
+*Conversation Management:*
+- **Script Builder**: Visual flow builder for conversation paths and responses
+- **Knowledge Base**: Updatable information database for AI to reference
+- **Business Rules**: Configure pricing mentions, service area boundaries, scheduling rules
+- **Escalation Triggers**: Define when AI should transfer to human agents
+- **Voice Settings**: Adjust AI personality, speaking speed, and communication style
+- **A/B Testing**: Test different conversation approaches and measure effectiveness
+
+*Training & Optimization:*
+- **Call Review**: Review AI conversations and identify improvement opportunities
+- **Response Training**: Update AI responses based on successful human agent interactions
+- **Intent Recognition**: Improve AI understanding of customer needs and requests
+- **Performance Tuning**: Optimize AI for better lead qualification and conversion
+- **Integration Updates**: Sync AI knowledge with CRM data and business changes
+
+**Customer Interaction History**:
+- **Complete Call Logs**: Full transcripts of all AI conversations per customer
+- **Conversation Context**: Previous AI interactions when human agents take over
+- **Lead Attribution**: Track which AI conversations generated successful bookings
+- **Follow-up Integration**: AI conversation data flows into task management and CRM
+- **Customer Preferences**: Remember customer communication preferences and details
+
+**Business Automation Expansion (Future Development)**:
+
+*Planned AI Agent Types:*
+```typescript
+// Future automation agents to be integrated
+interface BusinessAutomationAgents {
+  // Customer-Facing Agents
+  emailResponseAgent: "AI handles routine email inquiries and quote follow-ups";
+  reviewResponseAgent: "Automated responses to Google/Yelp reviews with human oversight";
+  chatbotAgent: "Website chat integration for instant lead qualification";
+  
+  // Internal Operations Agents
+  schedulingAgent: "AI optimizes crew schedules based on constraints and preferences";
+  inventoryAgent: "Automated material ordering and equipment maintenance scheduling";
+  followUpAgent: "AI manages customer follow-up sequences and callback scheduling";
+  
+  // Business Intelligence Agents
+  reportingAgent: "Automated report generation and performance insights";
+  pricingAgent: "Dynamic pricing adjustments based on demand and market conditions";
+  marketingAgent: "Campaign optimization and lead source attribution analysis";
+  
+  // Integration Capabilities
+  crmDataSync: "All AI agents access and update CRM data in real-time";
+  humanHandoff: "Seamless escalation to human team members with full context";
+  performanceMonitoring: "Continuous optimization based on success metrics";
+}
+```
+
+*Automation Strategy Framework:*
+- **Phase 1**: Voice AI call handling and basic customer interaction automation
+- **Phase 2**: Email automation and review management AI agents
+- **Phase 3**: Internal operations automation (scheduling, inventory, follow-ups)
+- **Phase 4**: Advanced AI agents for pricing, marketing, and business intelligence
+- **Phase 5**: Full ecosystem automation with human oversight and strategic direction
+
+**Voice AI Technology Integration Options**:
+
+*Voice AI Platforms (To Evaluate):*
+- **Retell AI**: Advanced conversational AI with CRM integration capabilities
+- **Ultravox**: Real-time voice AI with natural conversation flow
+- **Bland AI**: Phone call automation with lead qualification focus
+- **Vapi**: Voice AI platform with customizable conversation flows
+- **ElevenLabs**: Voice cloning and natural speech generation
+- **Assembly AI**: Speech-to-text and conversation analysis
+
+**AI Call Coaching & Human Agent Assistance**:
+
+**Intelligent Call Routing & Transfer System**:
+- **AI Transfer Context**: When AI transfers to human, full conversation summary and customer context provided
+- **Transfer Reasons**: Clear categorization (escalation, complex request, customer preference, technical issue)
+- **Warm Handoff**: AI introduces human agent by name and explains why transfer is happening
+- **Call History**: Complete AI conversation transcript immediately available to human agent
+- **Customer Mood**: AI sentiment analysis passed to human (frustrated, satisfied, confused, urgent)
+- **Recommended Actions**: AI suggests next best steps based on conversation analysis
+
+**Real-Time AI Call Coaching (Human Agents)**:
+*Live Call Assistance Dashboard:*
+- **Real-Time Transcription**: Live speech-to-text of both customer and agent conversation
+- **AI Suggestions Panel**: Real-time suggestions for responses and next actions
+- **Customer Context**: Live display of customer record, quote history, and previous interactions
+- **Objection Handling**: AI detects objections and provides proven response templates
+- **Sentiment Monitoring**: Real-time customer mood tracking with alerts for negative sentiment
+- **Script Guidance**: AI highlights key talking points and information to cover
+
+*AI Coaching Features:*
+- **Response Suggestions**: AI provides 3-5 suggested responses based on customer statements
+- **Information Prompts**: AI reminds agent of relevant customer details or business policies
+- **Pricing Guidance**: Real-time pricing calculations and discount approval suggestions
+- **Competitor Intelligence**: AI provides talking points when customer mentions competitors
+- **Closing Techniques**: AI suggests when and how to ask for the sale based on conversation flow
+- **Follow-up Reminders**: AI suggests creating tasks or scheduling callbacks during the call
+
+**In-App Calling System (All Calls Through CRM)**:
+
+*Unified Calling Interface:*
+- **CRM Native Dialer**: All business calls made through CRM app (web and mobile)
+- **Automatic Call Logging**: Every call automatically recorded and associated with customer record
+- **Click-to-Call**: Call any customer directly from their record, pipeline, or task list
+- **Conference Calling**: Add team members or managers to customer calls seamlessly
+- **Call Transfer**: Transfer active calls between team members with full context handoff
+- **Voicemail Integration**: Voicemails automatically transcribed and attached to customer records
+
+*Call Analytics & Performance:*
+- **Call Recording**: All calls recorded with customer consent for training and quality assurance
+- **Conversation Analysis**: AI analyzes calls for conversion opportunities and coaching feedback
+- **Talk Time Tracking**: Monitor call duration, talk ratio, and conversation effectiveness
+- **Outcome Tracking**: Link call results to customer status changes and booking conversions
+- **Performance Metrics**: Individual agent call performance with coaching recommendations
+- **Best Practice Identification**: AI identifies high-converting conversation patterns
+
+**Advanced AI Call Features**:
+
+*Real-Time Call Intelligence:*
+- **Live Competitor Mentions**: AI alerts when customer mentions competitor pricing or services
+- **Budget Detection**: AI identifies when customer reveals budget information or price concerns
+- **Decision Maker Identification**: AI helps identify if current contact is the decision maker
+- **Urgency Indicators**: AI detects time-sensitive language and moving date urgency
+- **Objection Patterns**: AI recognizes common objections and provides proven counter-responses
+- **Closing Opportunities**: AI suggests optimal moments to ask for booking confirmation
+
+*Post-Call AI Analysis:*
+- **Call Summary Generation**: AI creates comprehensive call summary with key points and outcomes
+- **Action Item Extraction**: AI identifies and creates follow-up tasks mentioned during call
+- **Sentiment Analysis**: Overall customer satisfaction and likelihood to book assessment
+- **Coaching Feedback**: Personalized coaching suggestions based on call performance
+- **Conversion Probability**: AI predicts likelihood of customer booking based on conversation
+- **Follow-up Recommendations**: AI suggests optimal timing and method for next customer contact
+
+**Call Coaching Configuration & Training**:
+
+*AI Coach Customization:*
+- **Company Voice Training**: AI learns company-specific language, policies, and sales approaches
+- **Individual Agent Profiles**: AI adapts coaching style to each agent's strengths and weaknesses
+- **Performance Goals**: Set specific coaching objectives (conversion rate, call length, customer satisfaction)
+- **Sensitivity Settings**: Adjust how frequently AI provides suggestions (minimal to comprehensive)
+- **Industry Knowledge**: AI trained on moving industry specifics, regulations, and best practices
+
+*Coaching Analytics & Improvement:*
+- **Coaching Effectiveness**: Track improvement in agent performance with AI coaching vs without
+- **Suggestion Acceptance**: Monitor which AI suggestions agents use most frequently
+- **Learning Patterns**: Identify which coaching approaches work best for different agent types
+- **Performance Correlation**: Link AI coaching usage to conversion rates and customer satisfaction
+- **Continuous Learning**: AI improves suggestions based on successful call outcomes and agent feedback
+
+*Integration Architecture:*
+```typescript
+// Voice AI system integration points
+interface VoiceAIIntegration {
+  // Core System Connections
+  supabaseIntegration: "Real-time CRM data sync during calls";
+  taskManagement: "Automatic task creation from AI conversations";
+  calendarSync: "AI schedules appointments directly in dispatch calendar";
+  customerRecords: "AI updates customer information and conversation history";
+  
+  // Communication Channels
+  phoneSystem: "Integration with business phone numbers and routing";
+  webChat: "Voice AI available through website chat interface";
+  mobileApp: "Voice assistant in crew mobile apps for internal communication";
+  
+  // Analytics & Monitoring
+  conversationAnalytics: "Call performance tracking and optimization";
+  leadScoring: "AI assesses lead quality and priority";
+  sentimentAnalysis: "Customer satisfaction detection during conversations";
+  businessIntelligence: "Voice interactions feed into CRM analytics";
+}
+```
+
+**Privacy & Compliance**:
+- **Call Recording**: Secure storage of AI conversations with customer consent
+- **Data Security**: Encrypted voice data transmission and storage
+- **Compliance**: Adherence to telemarketing regulations and privacy laws
+- **Customer Opt-out**: Easy process for customers to request human agents only
+- **Quality Assurance**: Regular AI performance reviews and conversation audits
+
+**ROI & Performance Tracking**:
+- **Cost Savings**: Reduced need for 24/7 human call center staffing
+- **Lead Generation**: Increased capture rate of after-hours and weekend inquiries
+- **Response Time**: Immediate call answering vs previous wait times
+- **Conversion Optimization**: A/B test different AI approaches for better booking rates
+- **Scalability**: Handle higher call volumes without proportional staff increases
 
 #### **Marketing Management:**
 
@@ -1111,6 +2156,39 @@ Complete historical record for each customer showing every action:
 - **Social Lead Generation**: Inquiries and bookings from social channels
 - **Influencer Collaborations**: Partnership tracking and performance
 - **Brand Mention Monitoring**: Social listening and reputation management
+
+**Social Media Chat Management**:
+*Unified Social Messaging Dashboard:*
+- **Facebook Messenger**: All customer messages from Facebook business page
+- **Instagram Direct Messages**: Customer inquiries and responses from Instagram
+- **TikTok Messages**: Direct messages and comments from TikTok business account
+- **YouTube Comments**: Comments on videos that require business responses
+- **Google Business Messages**: Customer messages through Google Business Profile
+- **Yelp Messages**: Customer inquiries through Yelp business page
+
+*Social Chat Features:*
+- **Consolidated Inbox**: All social platform messages in one unified view
+- **Platform Indicators**: Clear visual tags showing which platform each message came from
+- **Response Templates**: Pre-written responses optimized for each social platform
+- **Auto-Routing**: Route social messages to appropriate team members based on inquiry type
+- **Lead Qualification**: Convert social media inquiries into formal leads in CRM
+- **Response Time Tracking**: Monitor how quickly team responds to social media messages
+
+*Social Media AI Integration:*
+- **AI Social Responses**: Automated responses to common social media inquiries
+- **Sentiment Monitoring**: AI detects negative comments/messages requiring immediate attention
+- **Lead Scoring**: AI evaluates social media inquiries for conversion potential
+- **Brand Voice Consistency**: AI ensures responses match brand personality across platforms
+- **Language Detection**: Automatic translation for non-English social media messages
+- **Escalation Alerts**: Notify managers of complaints or negative sentiment on social platforms
+
+*Social Lead Conversion:*
+- **Message to Lead**: Convert social media inquiries directly into CRM leads
+- **Quote Generation**: Create and send quotes directly from social media conversations
+- **Appointment Scheduling**: Schedule estimates from social media message threads
+- **Customer Records**: Link social media profiles to customer records in CRM
+- **Follow-up Automation**: Automated follow-up sequences for social media leads
+- **Conversion Tracking**: Track which social media conversations result in bookings
 
 **Referral Program Tab**:
 
@@ -1615,6 +2693,218 @@ Complete historical record for each customer showing every action:
 - **Incident Reporting**: Real-time damage or maintenance issue reporting
 - **Performance Feedback**: Crew performance data flows back to profiles
 
+**GPS Vehicle Tracking & Fleet Monitoring**:
+- **Real-Time Location Tracking**: Live GPS coordinates for all trucks and vehicles
+- **Route Optimization**: Track actual routes vs planned routes for efficiency analysis
+- **Geofencing**: Automatic alerts when vehicles enter/exit job sites or service areas
+- **Speed Monitoring**: Track vehicle speeds and identify unsafe driving patterns
+- **Idle Time Tracking**: Monitor excessive idling for fuel efficiency optimization
+- **Maintenance Alerts**: GPS-based odometer tracking for scheduled maintenance
+- **Emergency Location**: Instant vehicle location for roadside assistance or emergencies
+
+**Live Vehicle Dashboard (Per Truck)**:
+- **Current Location**: Real-time GPS position with address and map view
+- **Vehicle Status**: In transit, on-site, parked, maintenance mode
+- **Fuel Level**: Current fuel percentage and estimated range (if equipped)
+- **Engine Diagnostics**: RPM, engine temperature, battery voltage (OBD-II integration)
+- **Mileage Tracking**: Daily/weekly/monthly odometer readings and trip logs
+- **Driver Behavior**: Hard braking, rapid acceleration, cornering alerts
+- **Hours of Service**: Track driving time for DOT compliance (commercial vehicles)
+
+**Customer GPS Tracking Portal**:
+- **Truck Arrival Tracking**: Customer can see assigned truck approaching their location
+- **ETA Updates**: Real-time arrival estimates based on current traffic and location
+- **Secure Tracking Link**: Unique URL sent via SMS/email for customer access
+- **Job Progress Updates**: "En route to pickup", "Loading in progress", "En route to delivery"
+- **Driver Contact**: Direct contact info for assigned crew with truck location
+- **Completion Notification**: Automatic alert when truck arrives at delivery location
+
+**Fleet Analytics & Reporting**:
+- **Route Efficiency**: Compare planned vs actual routes for optimization opportunities
+- **Fuel Consumption**: Track MPG, fuel costs, and efficiency trends per vehicle
+- **Driver Performance**: Safe driving scores, route adherence, on-time performance
+- **Vehicle Utilization**: Track usage patterns and identify underutilized assets
+- **Maintenance Optimization**: Predictive maintenance based on usage patterns and GPS data
+- **Cost Per Mile**: Comprehensive vehicle operating costs including fuel, maintenance, insurance
+
+**GPS Integration Options (Technology Stack - TBD)**:
+```typescript
+// Potential GPS tracking solutions to evaluate:
+interface GPSTrackingOptions {
+  // Commercial Fleet Tracking
+  fleetComplete: "Full fleet management with OBD-II integration";
+  verizonConnect: "Enterprise fleet tracking with driver behavior";
+  geotab: "Comprehensive telematics and vehicle diagnostics";
+  
+  // Developer-Friendly APIs
+  mapbox: "Custom tracking with route optimization APIs";
+  googleMaps: "Maps Platform with Fleet Engine for customer tracking";
+  here: "HERE Tracking API with geofencing capabilities";
+  
+  // Hardware Integration
+  odbII: "Direct vehicle diagnostic port integration";
+  dashcam: "AI-powered dashcam with GPS and driver monitoring";
+  mobilePrimary: "Smartphone-based tracking via crew mobile apps";
+  
+  // Customer Portal Integration
+  embeddedMap: "Embedded map widget on customer quote/booking pages";
+  smsLink: "Text message with secure tracking link";
+  emailUpdate: "Automated email updates with location and ETA";
+}
+```
+
+**GPS Data Storage & Privacy**:
+- **Location History**: 90-day GPS coordinate storage for route analysis
+- **Customer Privacy**: Tracking only active during job hours, not 24/7 monitoring
+- **Data Security**: Encrypted location data with secure customer access tokens
+- **Driver Privacy**: Clear policies on personal vs business use tracking
+- **Compliance**: DOT regulations for commercial vehicle tracking and hours of service
+
+#### **Unified Communication Inbox (Full-Page Expansion):**
+
+**Purpose**: Centralized communication hub accessible from top navigation bar that expands to full-page view. Consolidates all customer and internal communications without being a separate sidebar module.
+
+**Access Method**: 
+- **Top Bar Integration**: Inbox icon in header shows latest message count and preview
+- **Click to Expand**: Opens full-page overlay or dedicated page view
+- **Quick Preview**: Hover/click shows recent messages without leaving current page
+- **Return to Work**: Easy close/minimize to return to previous CRM module
+
+**Unified Inbox Full-Page Features**:
+
+**All Communication Channels Combined**:
+- **SMS/Text Messages**: All customer and internal text communications
+- **Email Messages**: Business email integration with customer correspondence
+- **AI Voice Call Logs**: Transcripts and summaries from voice AI interactions
+- **Internal Messages**: Team communications and system notifications
+- **Customer Portal Messages**: Communications from website contact forms
+- **Review Notifications**: New review alerts from Google, Yelp, Facebook
+- **System Alerts**: CRM notifications, task reminders, and business alerts
+
+**Message Organization & Filtering**:
+
+*Primary View Options:*
+- **All Messages**: Combined view of all communication channels
+- **Customer Communications**: Only external customer-facing messages
+- **Internal Messages**: Team communications and system notifications
+- **Unread Only**: Filter to show only unread/new messages
+- **Priority Messages**: High-priority communications requiring immediate attention
+- **By Channel**: Filter by SMS, Email, Voice AI, Reviews, etc.
+
+*Advanced Filtering:*
+- **By Customer**: See all communications with specific customer
+- **By Date Range**: Filter messages by time period
+- **By Team Member**: Messages assigned to or from specific staff
+- **By Status**: Read, unread, replied, pending response
+- **By Priority**: Emergency, high, normal, low priority levels
+
+**Message Interface & Actions**:
+
+*Message Display:*
+- **Conversation Threading**: Group related messages by customer/topic
+- **Contact Context**: Customer info and job details alongside messages
+- **Read/Unread Status**: Clear visual indicators for message status
+- **Response Time Tracking**: Show how long since customer message received
+- **Message Source**: Clear indication of communication channel (SMS, email, etc.)
+
+*Quick Actions (Per Message):*
+- **Reply Options**: Respond via same channel or choose different channel
+- **Forward to Team**: Route message to appropriate team member
+- **Create Task**: Generate follow-up task from message content
+- **Link to Customer**: Associate message with customer record
+- **Mark Priority**: Flag important messages for attention
+- **Archive/Delete**: Message management and organization
+
+**Response & Communication Tools**:
+
+*Multi-Channel Response:*
+- **Unified Reply Interface**: Respond to any message type from same interface
+- **Channel Selection**: Choose to reply via SMS, email, or phone call
+- **Template Responses**: Pre-written responses for common inquiries
+- **Signature Integration**: Automatic signatures based on selected communication channel
+- **File Attachments**: Add documents, photos, or quotes to responses
+
+*Advanced Communication Features:*
+- **Bulk Messaging**: Send messages to multiple customers simultaneously
+- **Scheduled Sending**: Schedule messages to be sent at optimal times
+- **Message Templates**: Library of common responses and follow-ups
+- **Auto-Responders**: Automated acknowledgment messages for after-hours
+- **Escalation Rules**: Automatically route urgent messages to managers
+
+**AI-Powered Response System**:
+
+*AI Auto-Responses (Full Automation):*
+- **After-Hours Auto-Reply**: AI automatically responds to customer messages outside business hours
+- **Common Question Handling**: AI provides instant answers to frequently asked questions
+- **Appointment Confirmation**: AI confirms/reschedules appointments automatically via text/email
+- **Quote Follow-up**: Automated follow-up sequences for customers who received quotes
+- **Review Requests**: AI sends personalized review collection messages post-job completion
+- **Payment Reminders**: Automated payment due notifications with personalized messaging
+- **Emergency Response**: AI detects urgent keywords and provides immediate acknowledgment + escalation
+
+*AI-Assisted Responses (Human + AI Collaboration):*
+- **Smart Suggestions**: AI suggests 3-5 response options based on customer message context
+- **Tone Matching**: AI adapts response style to match customer communication preferences
+- **Context Integration**: AI pulls customer history, job details, and previous conversations into suggested responses
+- **Grammar & Spelling**: Real-time correction and enhancement of team member responses
+- **Translation Support**: AI translates customer messages and suggests responses in appropriate language
+- **Sentiment Analysis**: AI detects customer mood (frustrated, happy, confused) and suggests appropriate response tone
+- **Quick Facts**: AI provides relevant customer/job information while composing responses
+
+*AI Response Configuration:*
+- **Response Rules**: Set triggers for when AI should auto-respond vs suggest responses
+- **Brand Voice Settings**: Configure AI personality to match company communication style
+- **Escalation Triggers**: Define keywords/situations that require immediate human intervention
+- **Learning Mode**: AI learns from human responses to improve future suggestions
+- **A/B Testing**: Test different AI response approaches and measure customer satisfaction
+- **Approval Workflows**: Route AI-generated responses through team leads before sending
+
+*AI Performance Monitoring:*
+- **Response Accuracy**: Track how often AI suggestions are used vs modified
+- **Customer Satisfaction**: Monitor customer reactions to AI-generated vs human responses
+- **Response Speed**: Measure improvement in team response times with AI assistance
+- **Conversion Impact**: Track how AI-assisted responses affect lead conversion and customer retention
+
+**Integration with CRM Modules**:
+
+*Customer Record Integration:*
+- **Message History**: All inbox communications sync to customer records
+- **Context Switching**: Click customer name to open their full CRM record
+- **Job Association**: Link messages to specific jobs and quotes
+- **Activity Timeline**: Messages appear in customer interaction timeline
+
+*Task & Follow-up Integration:*
+- **Auto-Task Creation**: System suggests tasks based on message content
+- **Reminder Integration**: Set follow-up reminders directly from messages
+- **Calendar Integration**: Schedule appointments mentioned in messages
+- **Pipeline Updates**: Messages can trigger customer status changes
+
+**Analytics & Performance Tracking**:
+
+*Response Metrics:*
+- **Average Response Time**: Track team performance in responding to messages
+- **Channel Performance**: Which communication methods get best response rates
+- **Customer Satisfaction**: Ratings on communication quality and speed
+- **Volume Trends**: Message volume patterns by time, day, season
+
+*Team Performance:*
+- **Individual Response Times**: Track each team member's communication speed
+- **Message Load**: Distribute communication workload evenly across team
+- **Customer Feedback**: Track communication-related compliments and complaints
+- **Efficiency Metrics**: Messages resolved vs escalated or requiring follow-up
+
+**Mobile & Accessibility**:
+- **Mobile Responsive**: Full inbox functionality on mobile devices
+- **Push Notifications**: Real-time alerts for new high-priority messages
+- **Voice-to-Text**: Dictate responses using mobile voice input
+- **Offline Draft**: Compose responses offline and send when connection restored
+
+**Privacy & Compliance**:
+- **Message Retention**: Automatic archiving and deletion based on retention policies
+- **Data Security**: Encrypted message storage and transmission
+- **Audit Trail**: Complete log of who accessed and responded to messages
+- **Customer Consent**: Proper opt-in/opt-out management for communications
+
 #### **Settings & Configuration Management:**
 
 **Purpose**: Frontend-configurable system settings for business rules, pricing, and operational parameters. Allows non-technical users to modify CRM behavior without code changes.
@@ -1762,6 +3052,1516 @@ Complete historical record for each customer showing every action:
 - **Testing Environment**: Sandbox mode for testing configuration changes
 - **Bulk Updates**: Mass update similar settings across categories
 - **Export/Import**: Configuration backup and transfer capabilities
+
+---
+
+## **CRM MOBILE APPLICATION PLANNING**
+
+### **Mobile CRM App Overview (`packages/crm-mobile/`)**
+
+**Core Philosophy**: Complete feature parity with web CRM, optimized for mobile workflows and touch interaction. The mobile app provides full CRM access for managers and sales staff who need to work on-the-go.
+
+**Target Users & Use Cases**:
+- **Sales Managers**: Pipeline management, lead review, team performance monitoring (field visits, commute, home)
+- **Sales Representatives**: Lead claiming, customer calls, quote follow-ups, appointment scheduling (customer visits, car)  
+- **Operations Managers**: Job monitoring, crew coordination, dispatch oversight (job sites, field supervision)
+- **Customer Service**: Issue resolution, review management, customer communication (remote work, field support)
+- **Executives**: Business KPIs, financial dashboards, strategic oversight (travel, off-site meetings)
+
+**Key Mobile Advantages Over Web**:
+- **Location Context**: GPS awareness for nearby customers, job sites, and crew locations
+- **Push Notifications**: Instant alerts for hot leads, emergency jobs, and critical updates
+- **Voice Input**: Voice-to-text for notes, customer interactions, and quick data entry
+- **Camera Integration**: Photo capture for job documentation, damage claims, and document scanning
+- **Phone Integration**: One-tap calling with automatic call logging to CRM
+- **Offline Capability**: Core functions work without internet, sync when connection restored
+- **Native Performance**: Smooth touch interactions and optimized mobile UI/UX
+
+### **Mobile-Optimized Module Design**
+
+#### **Mobile Dashboard**:
+**Optimized for Quick Glances & Touch Navigation**
+
+*Key Metrics Cards (Swipeable):*
+- **Today's Performance**: Leads claimed, calls made, quotes sent, jobs booked
+- **Pipeline Overview**: Visual pipeline with touch-friendly status movement
+- **My Metrics**: Personal performance vs targets with progress bars
+- **Urgent Actions**: Hot leads, overdue follow-ups, emergency notifications
+- **Team Status**: Crew locations, job progress, immediate issues requiring attention
+
+*Mobile Dashboard Features:*
+- **Widget Customization**: Drag-and-drop dashboard widgets for personalized views
+- **Voice Commands**: "Show me today's hot leads" or "Call my next follow-up"
+- **Quick Actions Bar**: One-tap access to create lead, add task, make call, send text
+- **Notification Center**: All alerts and updates accessible with swipe-down gesture
+- **Offline Indicators**: Clear visual indicators when app is working offline
+
+#### **Mobile Pipeline Management**:
+**Touch-Optimized Visual Pipeline**
+
+*Mobile Pipeline Interface:*
+- **Horizontal Scrolling**: Swipe through pipeline stages (Hot Lead → Lead → Opportunity → Booked → etc.)
+- **Card-Based View**: Customer cards optimized for thumb navigation and one-handed use
+- **Drag-and-Drop**: Intuitive touch gestures to move customers between pipeline stages
+- **Quick Actions**: Swipe gestures on customer cards for call, text, email, view details
+- **Status Badges**: Color-coded priority indicators and urgency flags clearly visible
+
+*Mobile-Specific Pipeline Features:*
+- **Voice Search**: "Show me John Smith" or "Find customers with quotes over $2000"
+- **Location Filtering**: "Show customers near my current location" for efficient route planning
+- **Quick Dial**: Tap phone number to call immediately with automatic CRM call logging
+- **Voice Notes**: Record voice memos attached to customer records during/after calls
+- **Photo Attachment**: Add photos to customer records (damage documentation, estimates)
+
+#### **Mobile Leads Management**:
+**Optimized for Fast Lead Response**
+
+*Unclaimed Leads (Mobile Priority):*
+- **Push Notification**: Instant alerts for new hot leads with customer details preview
+- **One-Tap Claiming**: Claim leads immediately from notification or leads list
+- **Quick Call**: Auto-dial customer phone number directly from lead card
+- **Voice-to-Text Notes**: Record lead qualification notes during call using voice input
+- **GPS Context**: See lead location relative to current position for scheduling efficiency
+
+*My Leads Mobile Workflow:*
+- **Call Queue**: Prioritized list of leads to call with estimated contact times
+- **Swipe Actions**: Swipe left for "Call", swipe right for "Text", long press for "Details"
+- **Call Integration**: Native phone app integration with automatic call duration and outcome logging
+- **Follow-up Scheduling**: Quick calendar integration for callback appointments
+- **Lead Status Updates**: One-tap status changes with optional voice notes
+
+#### **Mobile Customer Management**:
+**Touch-Friendly Customer Interaction**
+
+*Customer Cards Optimized for Mobile:*
+- **Essential Info First**: Name, phone, quote amount, status prominently displayed
+- **Expandable Details**: Tap to reveal full customer information and interaction history
+- **Communication Hub**: Quick access to call, text, email with conversation history
+- **Job Timeline**: Visual timeline of customer journey with key milestones
+- **Photo Gallery**: Customer photos, job site images, damage documentation
+
+*Mobile Customer Actions:*
+- **One-Tap Communication**: Call, text, or email customer with single touch
+- **Voice Memos**: Record follow-up notes during or after customer interactions
+- **Photo Documentation**: Camera integration for adding images to customer records
+- **GPS Navigation**: Get directions to customer address with preferred navigation app
+- **Quick Quote Updates**: Simple interface for re-rating and price adjustments
+
+#### **Mobile Communication Inbox**:
+**Unified Mobile Messaging Experience**
+
+*Mobile Inbox Interface:*
+- **Conversation View**: WhatsApp-style conversation threading for customer communications
+- **Channel Indicators**: Visual badges showing SMS, email, social media, voice AI source
+- **Swipe Gestures**: Swipe to archive, mark important, or create follow-up task
+- **Voice Replies**: Voice-to-text for quick responses during travel or hands-free situations
+- **Smart Suggestions**: AI-powered response suggestions optimized for mobile quick-replies
+
+*Mobile Communication Features:*
+- **Push Notifications**: Instant alerts for customer messages with response previews
+- **Offline Drafts**: Compose responses offline, send automatically when connection restored
+- **Quick Responses**: One-tap replies for common responses ("Thanks, I'll call you back")
+- **Photo Sharing**: Send photos directly from camera or photo library
+- **Location Sharing**: Share current location with customers for arrival updates
+
+#### **Mobile Calendar & Scheduling**:
+**Touch-Optimized Calendar Management**
+
+*Mobile Calendar Views:*
+- **Day View**: Hour-by-hour schedule with job details and customer contact info
+- **Week View**: Swipeable week overview with color-coded appointments and jobs
+- **Agenda View**: List format optimized for mobile scrolling with key details
+- **Map View**: Calendar appointments plotted on map for efficient route planning
+- **Crew Schedule**: See crew assignments and availability on mobile dashboard
+
+*Mobile Scheduling Features:*
+- **Quick Add**: Voice input for creating appointments ("Schedule estimate with John tomorrow at 2 PM")
+- **Travel Time**: GPS-based travel time calculation between appointments
+- **Traffic Integration**: Real-time traffic alerts and route optimization suggestions
+- **Appointment Reminders**: Push notifications with customer contact info before appointments
+- **One-Tap Actions**: Call customer, get directions, or reschedule directly from calendar
+
+#### **Mobile Task Management**:
+**Thumb-Friendly Task Organization**
+
+*Mobile Task Interface:*
+- **Today's Tasks**: Prioritized list of tasks due today with completion checkboxes
+- **Swipe Actions**: Swipe to complete, postpone, or delegate tasks
+- **Voice Task Creation**: "Remind me to follow up with Sarah tomorrow at 10 AM"
+- **Photo Tasks**: Attach photos to tasks for visual reference (damage claims, inventory needs)
+- **Location-Based Tasks**: Tasks automatically sorted by proximity to current location
+
+*Mobile Task Features:*
+- **Quick Complete**: One-tap task completion with optional voice note
+- **Smart Reminders**: Location-based reminders when near customer addresses
+- **Voice Notes**: Record task completion details hands-free
+- **Photo Documentation**: Add before/after photos for completed tasks
+- **Integration**: Tasks created from calls, messages, or calendar events automatically
+
+#### **Mobile Fleet & GPS Tracking**:
+**Real-Time Fleet Management on Mobile**
+
+*Mobile Fleet Dashboard:*
+- **Live Map View**: Real-time truck locations with driver info and job status
+- **Truck Details**: Tap truck icon for fuel level, diagnostics, and driver contact
+- **Geofence Alerts**: Push notifications when trucks arrive/depart job sites
+- **Route Monitoring**: Compare planned vs actual routes with traffic conditions
+- **Emergency Locations**: Instant access to all truck locations for roadside assistance
+
+*Mobile Fleet Features:*
+- **Driver Communication**: Direct calling/texting to drivers from fleet map
+- **Customer Sharing**: Share truck location with customers via SMS with tracking link
+- **Photo Reports**: Drivers can submit photos directly from trucks (damage, completion)
+- **Fuel Tracking**: Manual fuel entry with photo receipt capture
+- **Maintenance Alerts**: Push notifications for scheduled maintenance and inspections
+
+### **Mobile-Specific Features & Capabilities**
+
+#### **Native Mobile Integration**:
+
+**Phone & Contacts Integration**:
+- **CRM Native Dialer**: All business calls made through CRM mobile app (not native phone app)
+- **Automatic Call Logging**: Every call automatically recorded and associated with customer record
+- **Call History Sync**: Complete call history with recordings accessible across all devices
+- **Conference Calling**: Multi-party calls with customers and team members
+- **Voicemail Integration**: Voicemail transcriptions automatically attached to customer records
+
+**AI Call Coaching on Mobile**:
+- **Real-Time Call Assistance**: AI coaching dashboard available during mobile calls
+- **Live Transcription**: Real-time speech-to-text overlay during customer calls
+- **Smart Suggestions**: AI provides response suggestions directly on mobile screen
+- **Customer Context**: Full customer history and notes displayed during call
+- **Objection Handling**: AI detects objections and provides counter-response templates
+- **Closing Prompts**: AI suggests optimal moments to ask for booking confirmation
+- **Post-Call Summary**: AI generates call summary and suggested follow-up actions
+- **Performance Feedback**: Real-time coaching feedback to improve call effectiveness
+
+**Camera & Photo Management**:
+- **Document Scanning**: Use camera to scan contracts, permits, receipts with OCR text extraction
+- **Before/After Photos**: Job site documentation with automatic customer record attachment
+- **Damage Claims**: Photo evidence capture with GPS location and timestamp metadata
+- **Business Card Scanning**: Scan business cards to create new customer records
+
+**GPS & Location Services**:
+- **Automatic Mileage Tracking**: Log business travel miles for expense reporting
+- **Proximity Alerts**: Notifications when near customer locations or job sites  
+- **Territory Management**: Visual territory boundaries with customer density mapping
+- **Route Optimization**: Multi-stop route planning for sales visits and follow-ups
+
+**Push Notifications & Alerts**:
+- **Hot Lead Alerts**: Instant notifications for new leads requiring immediate attention
+- **Customer Responses**: Real-time alerts when customers reply to quotes or messages
+- **Job Status Updates**: Crew check-ins, job completions, and emergency situations
+- **Performance Milestones**: Daily/weekly goal achievements and team performance updates
+
+#### **Offline Capability & Data Sync**:
+
+**Offline-First Design**:
+- **Core Data Cache**: Customer records, pipeline, tasks, and calendar cached for offline access
+- **Offline Actions**: Create leads, update statuses, add notes, schedule tasks without internet
+- **Smart Sync**: Automatic background sync when connection restored with conflict resolution
+- **Data Priority**: Critical customer information syncs first, followed by analytics and reports
+
+**Battery & Performance Optimization**:
+- **Background App Refresh**: Intelligent sync scheduling to preserve battery life
+- **Selective Sync**: Choose which data types to sync on cellular vs WiFi connections
+- **Image Compression**: Automatic photo compression for faster upload and reduced data usage
+- **Cache Management**: Automatic cleanup of old cached data to preserve device storage
+
+#### **Mobile Security & Access Control**:
+
+**Device Security**:
+- **Biometric Authentication**: Face ID, Touch ID, or Android biometric login options
+- **Remote Wipe**: Administrative ability to remotely clear CRM data from lost/stolen devices
+- **App Locking**: Automatic app lock after inactivity with PIN/biometric unlock
+- **Screenshot Prevention**: Disable screenshots for sensitive customer financial information
+
+**Data Protection**:
+- **Encrypted Storage**: All cached CRM data encrypted using device-level security
+- **VPN Support**: Corporate VPN integration for secure data transmission
+- **Certificate Pinning**: Enhanced security for API communications with CRM backend
+- **Audit Logging**: Complete log of mobile access, actions, and data modifications
+
+### **Mobile User Experience Design**
+
+#### **Navigation & Interface**:
+
+**Mobile-First UI Patterns**:
+- **Bottom Tab Navigation**: Primary CRM modules accessible via bottom tab bar
+- **Gesture Navigation**: Swipe gestures for common actions (call, text, complete, archive)
+- **Pull-to-Refresh**: Standard mobile pattern for refreshing data and syncing updates
+- **Infinite Scroll**: Smooth scrolling through customer lists, pipeline, and communication history
+- **Modal Workflows**: Full-screen modals for complex tasks like quote generation and customer details
+
+**Responsive Design Elements**:
+- **Thumb-Friendly Targets**: All touch targets optimized for one-handed mobile operation
+- **Progressive Disclosure**: Show essential information first, reveal details on demand
+- **Context-Sensitive Actions**: Different action buttons based on customer status and location
+- **Dark Mode Support**: System-level dark mode with OLED optimization for battery savings
+- **Accessibility**: Full VoiceOver/TalkBack support with semantic markup and voice control
+
+#### **Performance & User Experience**:
+
+**App Performance Optimization**:
+- **Native Rendering**: Expo/React Native with native modules for smooth performance
+- **Image Optimization**: Lazy loading, WebP format, and automatic sizing for mobile screens
+- **Network Efficiency**: GraphQL queries optimized for mobile bandwidth and battery life
+- **Background Processing**: Smart background tasks for data sync and push notification preparation
+
+**User Experience Enhancements**:
+- **Haptic Feedback**: Tactile feedback for important actions (lead claimed, task completed)
+- **Voice Control**: Siri/Google Assistant integration for hands-free CRM operations
+- **Widget Support**: iOS/Android home screen widgets for quick CRM status overview
+- **Shortcuts**: Customizable quick actions accessible from home screen and search
+
+### **Mobile Testing & Quality Assurance**
+
+**Device & Platform Testing**:
+- **Multi-Device Testing**: iPhone SE to iPhone Pro Max, Android phones and tablets
+- **OS Version Support**: iOS 14+ and Android 8+, with testing on latest and previous versions
+- **Network Condition Testing**: Performance testing on 3G, 4G, 5G, and WiFi connections
+- **Battery Impact Testing**: Monitor battery drain and optimize background processes
+
+**User Acceptance Testing**:
+- **Field Testing**: Real-world testing with sales reps and managers in typical work environments
+- **Usability Testing**: One-handed operation, driving safety, and accessibility compliance
+- **Performance Benchmarking**: App launch time, data sync speed, and response time metrics
+- **Feedback Integration**: Built-in feedback system for continuous mobile experience improvement
+
+This comprehensive mobile CRM provides complete feature parity with the web application while taking full advantage of mobile device capabilities and optimizing for on-the-go workflows.
+
+---
+
+## **CREW MOBILE APPLICATION PLANNING**
+
+### **Crew Mobile App Overview (`packages/crew-mobile/`)**
+
+**Core Philosophy**: Specialized field operations app designed specifically for moving crews and drivers. Focused on job execution, customer interaction, and real-time job management from pickup to delivery completion.
+
+**Target Users & Role-Based Access**:
+- **Crew Leaders/Foremen**: Full job management, payment collection, customer signatures, job modifications
+- **Experienced Movers**: Job viewing, photo documentation, customer communication, equipment check-out
+- **New/Junior Movers**: Job viewing only, basic documentation, no payment or contract access
+- **Drivers**: Vehicle management, route optimization, fuel tracking, mileage logging
+
+### **Core Crew Mobile Features**
+
+#### **Job Management Dashboard**:
+**Role-Based Job Access & Visibility**
+
+*Job Overview Interface:*
+- **Today's Jobs**: Current assignments with time, location, and crew member details
+- **Upcoming Jobs**: Future scheduled jobs with preparation requirements
+- **Past Jobs**: Completed job history with photos, signatures, and notes
+- **Job Status Pipeline**: Visual progress tracking (Assigned → En Route → Loading → In Transit → Unloading → Complete)
+- **Crew Assignment Display**: "Working with: Mike (Lead), Sarah (Mover), John (Driver)"
+
+*Job Details View:*
+- **Customer Information**: Name, phone, addresses (pickup/delivery), special instructions
+- **Job Type & Service**: Local, long-distance, packing, white glove, specialty items
+- **Equipment Required**: Dollies, straps, piano boards, safe equipment, blankets
+- **Inventory List**: Pre-loaded items to move with quantities and special handling notes
+- **Time Estimates**: Scheduled start time, estimated duration, expected completion
+- **Crew Requirements**: Number of movers needed, specializations required
+
+#### **Navigation & Route Management**:
+**Integrated Mapping & GPS Features**
+
+*Smart Navigation Integration:*
+- **One-Tap Navigation**: Tap address to open in Google Maps or Apple Maps instantly
+- **Route Optimization**: Multiple stops optimized for efficiency (pickup → storage → delivery)
+- **Real-Time Traffic**: Live traffic updates and alternative route suggestions
+- **Arrival Notifications**: Automatic customer notifications when crew is 15-30 minutes away
+- **Location Sharing**: Send live GPS location and ETA to customers via SMS
+
+*Mileage & Vehicle Tracking:*
+- **Automatic Mileage Logging**: GPS-based trip tracking for payroll and expense reporting
+- **Fuel Tracking**: Photo-based receipt capture with odometer readings
+- **Vehicle Pre-Trip Inspection**: Digital checklist with photo documentation
+- **Maintenance Alerts**: Reminders for scheduled vehicle service and inspections
+
+#### **Customer Communication & Updates**:
+**Automated Customer Notification System**
+
+*Job Progress Communications:*
+1. **Crew Assigned**: "Your crew has been assigned: Mike (Lead), Sarah, John. Contact: (555) 123-4456"
+2. **En Route**: "Your crew is on the way! Track their location: [GPS Link] ETA: 2:30 PM"
+3. **Arrival**: "We've arrived at your location and are setting up equipment"
+4. **Loading Started**: "We've begun loading your items. Estimated loading time: 2 hours"
+5. **Loading Complete**: "Loading finished! En route to delivery location. ETA: 4:30 PM"
+6. **Delivery Arrival**: "We've arrived at your delivery location"
+7. **Unloading Started**: "Unloading your items now. Estimated completion: 1 hour"
+8. **Job Complete**: "Move completed! Please review and sign completion documents"
+
+*Communication Features:*
+- **One-Tap Messaging**: Pre-written templates for common updates
+- **Custom Messages**: Voice-to-text for personalized customer communication
+- **Photo Sharing**: Send progress photos to customers during move
+- **Emergency Contact**: Direct line to dispatch for issues or changes
+
+#### **Job Execution Workflow**:
+**Step-by-Step Job Management**
+
+*Pre-Move Setup (Crew Lead Only):*
+- **Job Acceptance**: Accept or decline job assignments with reason codes
+- **Equipment Check-Out**: Scan QR codes to check out required equipment
+- **Vehicle Assignment**: Confirm truck assignment and complete pre-trip inspection
+- **Crew Briefing**: Review job details, special requirements, and safety considerations
+
+*Pickup Phase:*
+- **Customer Meet & Greet**: Digital customer information and special instructions
+- **Walkthrough Documentation**: Photos of items, existing damage, access challenges
+- **Inventory Verification**: Confirm items match pre-move inventory with photos
+- **Contract Signing**: Customer signs Bill of Lading (BOL) on mobile device
+- **Loading Documentation**: Before/during/after loading photos with timestamps
+
+*Transit Phase:*
+- **Route Tracking**: GPS monitoring with real-time location sharing
+- **Inventory Security**: Photo documentation of secured load
+- **Stop Management**: Add fuel stops, meal breaks, overnight stays (long-distance)
+- **Issue Reporting**: Report vehicle problems, traffic delays, or route changes
+
+*Delivery Phase:*
+- **Delivery Confirmation**: Verify correct delivery address and customer contact
+- **Unloading Documentation**: Photo documentation of items being unloaded
+- **Inventory Check**: Customer verification of items received in good condition
+- **Damage Reporting**: Document any issues discovered during unloading
+- **Final Walkthrough**: Customer signs completion documents and BOL
+
+#### **Payment & Contract Management**:
+**Role-Based Financial Operations (Crew Leads Only)**
+
+*Payment Collection:*
+- **Final Invoice Display**: Show customer final charges with breakdown
+- **Payment Methods**: Credit card processing, cash, check acceptance
+- **Tip Processing**: Separate tip collection and distribution tracking
+- **Receipt Generation**: Automatic receipt generation and customer email/SMS delivery
+- **Payment Confirmation**: Real-time payment verification and CRM sync
+
+#### **Time Clock & Incident Reporting System**:
+**Accurate Time Tracking & Documentation**
+
+*Time Clock Management:*
+- **Clock In/Out**: GPS-verified time tracking for accurate payroll
+- **Break Tracking**: Automatic break time logging with location verification
+- **Lunch Break Timer**: Required break periods tracked and logged
+- **Overtime Monitoring**: Track hours worked beyond standard shift limits
+- **Late Arrivals**: Document tardiness with GPS timestamp (no pay deduction)
+- **Early Departures**: Log early clock-outs with reason codes
+
+*Incident Documentation & Reporting:*
+- **Equipment Damage**: Photo documentation of damaged equipment with crew member involved
+- **Lost Equipment**: Report missing equipment with last known user and location
+- **Safety Incidents**: Document safety violations or accidents with photos and details
+- **Customer Issues**: Log customer complaints or service problems for management review
+- **Vehicle Problems**: Report vehicle damage, accidents, or maintenance issues
+- **Job Quality Issues**: Document workmanship problems or unprofessional behavior
+
+*Time Adjustment Features:*
+- **Break Time Deductions**: Automatically subtract break time from total work hours
+- **Unauthorized Time**: Flag time periods when crew member was not on-site or working
+- **Manual Time Adjustments**: Crew leads can adjust time for legitimate reasons (bathroom, equipment setup)
+- **Overtime Calculations**: Automatic overtime hour calculations based on daily/weekly limits
+- **Job-Specific Time**: Track time spent on specific jobs vs travel/setup time
+
+*Reporting & Documentation:*
+- **Incident Reports**: Crew leads create incident reports with photos, GPS location, and details
+- **Management Notifications**: Automatic alerts to management for serious incidents
+- **Employee Acknowledgment**: Crew members acknowledge incidents and time adjustments
+- **Payroll Integration**: Accurate time data automatically syncs to payroll system
+- **Performance Records**: All incidents and time issues maintained in employee records
+
+*Time Clock Categories:*
+```typescript
+// Time tracking and adjustment system
+interface CrewTimeTracking {
+  clockEvents: {
+    clockIn: "GPS-verified start time";
+    clockOut: "GPS-verified end time";
+    breakStart: "Break period begins";
+    breakEnd: "Break period ends";
+    lunchStart: "Lunch break begins";
+    lunchEnd: "Lunch break ends";
+  };
+  
+  timeAdjustments: {
+    unauthorizedBreak: "Time deducted from total hours";
+    excessiveLunch: "Time beyond allowed lunch period";
+    offSiteTime: "Time away from job site without authorization";
+    setupTime: "Equipment setup and preparation time";
+    cleanupTime: "Job cleanup and equipment return time";
+  };
+  
+  incidentTypes: {
+    equipmentDamage: "Photo documentation required";
+    customerComplaint: "Details and resolution needed";
+    safetyViolation: "Immediate management notification";
+    vehicleIssue: "Location and damage photos required";
+    jobQualityIssue: "Description and corrective action taken";
+  };
+}
+```
+
+*Time Management Workflow:*
+1. **Clock In**: GPS-verified arrival at job site or company location
+2. **Work Period**: Active work time with location tracking
+3. **Break Periods**: Timed breaks with automatic deduction from work hours
+4. **Incident Documentation**: Real-time reporting of any issues or problems
+5. **Clock Out**: GPS-verified departure with total hours calculated
+6. **Management Review**: Daily review of time records and incident reports
+7. **Payroll Processing**: Accurate time data sent to payroll system
+
+*Management Oversight Features:*
+- **Real-Time Monitoring**: Live view of crew time status and locations
+- **Daily Time Reports**: Summary of each crew member's hours and incidents
+- **Pattern Analysis**: Identify recurring issues or performance problems
+- **Coaching Opportunities**: Use incident data for employee training and improvement
+- **Compliance Tracking**: Ensure adherence to labor laws and company policies
+
+*Digital Signatures & Contracts:*
+- **Bill of Lading (BOL)**: Digital signing at pickup and delivery
+- **Service Agreement**: Customer signature on terms and conditions
+- **Damage Claims**: Customer acknowledgment of any issues or damage
+- **Completion Certificate**: Final job completion signature and satisfaction rating
+- **Contract Delivery**: Automatic email/SMS of signed documents to customer
+
+#### **Inventory & Equipment Management**:
+**Real-Time Asset Tracking**
+
+*Equipment Check-Out System:*
+- **QR Code Scanning**: Scan equipment QR codes for check-out/check-in
+- **Equipment Status**: Available, checked out, in use, needs maintenance
+- **Damage Reporting**: Photo documentation of equipment damage with GPS location
+- **Maintenance Requests**: Submit equipment repair requests with photos and descriptions
+- **Inventory Alerts**: Low stock notifications for supplies (blankets, straps, boxes)
+
+*Job Supplies Management:*
+- **Supply Usage Tracking**: Log materials used per job (boxes, tape, bubble wrap)
+- **Additional Supply Requests**: Request additional materials during job
+- **Supply Photography**: Document supply usage with before/after photos
+- **Cost Tracking**: Automatic supply cost allocation to customer jobs
+
+#### **Photo Documentation System**:
+**Comprehensive Visual Job Documentation**
+
+*Required Photo Categories:*
+- **Pre-Move**: Items to be moved, existing damage, access points
+- **Loading Process**: Items being loaded, truck organization, protective wrapping
+- **Transit**: Secured load, any stops or issues during transport
+- **Delivery Process**: Items being unloaded, placement, customer verification
+- **Post-Move**: Completed delivery setup, customer satisfaction
+- **Damage/Issues**: Any problems discovered with GPS location and timestamp
+
+*Photo Management Features:*
+- **Automatic Organization**: Photos automatically tagged by job phase and category
+- **GPS & Timestamp**: All photos include location data and accurate timestamps
+- **Customer Sharing**: Selected photos can be shared with customers in real-time
+- **CRM Integration**: All photos automatically sync to customer records
+- **Storage Optimization**: Automatic photo compression and cloud backup
+
+#### **Notes & Communication Log**:
+**Comprehensive Job Documentation**
+
+*Note-Taking Features:*
+- **Voice-to-Text**: Hands-free note recording during job execution
+- **Pre-Written Templates**: Common notes for typical situations and issues
+- **Customer Conversations**: Log important customer requests or concerns
+- **Internal Crew Notes**: Communication between crew members and dispatch
+- **Issue Documentation**: Detailed problem reporting with photos and solutions
+
+*Communication History:*
+- **Customer Messages**: Complete SMS/call history with customer
+- **Dispatch Communication**: Messages with operations team and management
+- **Crew Coordination**: Internal crew member communication and coordination
+- **Vendor Contacts**: Communication with storage facilities, suppliers, partners
+
+### **Role-Based Access Control**
+
+#### **Crew Leader/Foreman Permissions**:
+**Full Job Management Authority**
+- ✅ **Complete Job Control**: Start, pause, modify, and complete jobs
+- ✅ **Payment Processing**: Collect payments, process tips, handle refunds
+- ✅ **Contract Management**: Customer signatures, BOL, damage claims
+- ✅ **Crew Coordination**: Assign tasks, manage team, communicate with dispatch
+- ✅ **Supply Management**: Order additional supplies, report equipment issues
+- ✅ **Job Modifications**: Add charges, stops, services during job execution
+- ✅ **Customer Problem Resolution**: Handle complaints, negotiate solutions
+
+#### **Experienced Mover Permissions**:
+**Operational Support Role**
+- ✅ **Job Viewing**: See all job details, customer info, requirements
+- ✅ **Photo Documentation**: Take and upload photos throughout job
+- ✅ **Equipment Check-Out**: Scan and manage equipment usage
+- ✅ **Customer Communication**: Send updates, share photos, answer questions
+- ✅ **Inventory Tracking**: Log items moved, supplies used, damage found
+- ❌ **Payment Processing**: Cannot collect payments or handle contracts
+- ❌ **Job Control**: Cannot start/stop jobs or make modifications
+
+#### **New/Junior Mover Permissions**:
+**Limited Observation & Learning Role**
+- ✅ **Job Viewing**: See basic job information and crew assignments
+- ✅ **Basic Documentation**: Take photos under supervision
+- ✅ **Equipment Viewing**: See required equipment but cannot check out
+- ❌ **Customer Communication**: Cannot directly contact customers
+- ❌ **Payment/Contracts**: No access to financial or legal functions
+- ❌ **Job Control**: Cannot make any job modifications or decisions
+
+#### **Driver Permissions**:
+**Vehicle & Route Management Focus**
+- ✅ **Vehicle Management**: Pre-trip inspection, fuel tracking, maintenance
+- ✅ **Route Optimization**: Navigation, traffic updates, delivery coordination
+- ✅ **Mileage Tracking**: GPS logging, expense reporting, fuel receipts
+- ✅ **Loading Coordination**: Organize truck loading for safety and efficiency
+- ✅ **Customer Location Updates**: Share GPS tracking and arrival times
+- ❌ **Payment Processing**: Cannot handle financial transactions
+- ❌ **Contract Signing**: Cannot manage customer signatures or BOL
+
+### **Mobile-Specific Features**
+
+#### **Push Notifications & Alerts**:
+**Real-Time Job & System Updates**
+- **New Job Assignments**: Instant notification when assigned to new jobs
+- **Schedule Changes**: Alerts for job time changes, cancellations, or additions
+- **Emergency Alerts**: Urgent messages from dispatch or customer issues
+- **Weather Warnings**: Severe weather alerts affecting job safety
+- **Equipment Recalls**: Immediate notification of equipment safety issues
+- **Payment Confirmations**: Success/failure notifications for payment processing
+
+#### **Offline Capability**:
+**Field-Ready Offline Operations**
+- **Job Data Cache**: All assigned job information available offline
+- **Photo Storage**: Images saved locally until internet connection restored
+- **Note Recording**: Voice notes and text saved offline with auto-sync
+- **Signature Capture**: Digital signatures stored locally until sync
+- **GPS Tracking**: Location data cached for mileage and route reconstruction
+
+#### **Battery & Performance Optimization**:
+**All-Day Field Usage**
+- **Power Management**: Optimized GPS usage to preserve battery life
+- **Background Processing**: Intelligent sync scheduling for minimal battery drain
+- **Photo Compression**: Automatic image optimization for storage and upload
+- **Network Efficiency**: Smart data usage on cellular connections
+
+### **Integration Points**
+
+#### **CRM System Integration**:
+**Real-Time Business System Sync**
+- **Job Status Updates**: Automatic CRM updates as jobs progress through stages
+- **Customer Communication Log**: All messages and calls logged to customer records
+- **Photo Documentation**: All job photos automatically attached to customer files
+- **Payment Processing**: Payment confirmations sync to accounting and invoicing
+- **Time Tracking**: Crew hours automatically logged for payroll processing
+
+#### **Dispatch Coordination**:
+**Live Operations Communication**
+- **Real-Time Location**: Crew locations visible on dispatch dashboard
+- **Job Progress**: Live updates on loading, transit, and delivery progress
+- **Issue Escalation**: One-tap escalation to dispatch for problems
+- **Resource Requests**: Request additional crew, equipment, or supplies
+- **Emergency Communication**: Direct line to operations for urgent situations
+
+#### **Fleet Management Integration**:
+**Vehicle & Equipment Coordination**
+- **Vehicle Diagnostics**: Integration with truck GPS and diagnostic systems
+- **Fuel Efficiency**: Automatic MPG calculation and efficiency reporting
+- **Maintenance Scheduling**: Usage-based maintenance alerts and scheduling
+- **Equipment Tracking**: Real-time equipment location and usage monitoring
+
+### **User Experience Design**
+
+#### **Field-Optimized Interface**:
+**Designed for Work Environment Usage**
+- **Large Touch Targets**: Optimized for gloved hands and outdoor use
+- **High Contrast Display**: Readable in bright sunlight and various lighting
+- **One-Handed Operation**: Critical functions accessible with thumb navigation
+- **Voice Control**: Hands-free operation during loading and moving activities
+- **Weather Resistance**: Interface designed for use in various weather conditions
+
+#### **Workflow Efficiency**:
+**Streamlined Job Execution**
+- **Step-by-Step Guidance**: Clear workflow progression with visual indicators
+- **Quick Actions**: Common tasks accessible with minimal taps
+- **Smart Defaults**: Pre-populated information based on job type and history
+- **Error Prevention**: Built-in validation to prevent common mistakes
+- **Undo Functionality**: Ability to correct mistakes without starting over
+
+This comprehensive Crew Mobile App provides specialized functionality for field operations while maintaining seamless integration with the broader CRM ecosystem. The role-based access ensures appropriate permissions while the mobile-optimized design enables efficient job execution from pickup to completion.
+
+---
+
+## **MARKETING WEBSITE PLANNING**
+
+### **Marketing Website Overview (`packages/website/`)**
+
+**Core Philosophy**: Customer-facing marketing website with integrated quote system, customer portal, and lead generation. Serves as the primary customer acquisition channel while providing self-service capabilities for existing customers.
+
+**Primary Goals**:
+- **Lead Generation**: Convert website visitors into qualified leads in CRM
+- **Service Education**: Comprehensive information about all moving services offered
+- **Trust Building**: Reviews, testimonials, team information, and company credibility
+- **Customer Self-Service**: Quote tracking, GPS tracking, payments, and support
+- **SEO Optimization**: Rank for local moving keywords and service-specific searches
+- **Conversion Optimization**: Streamlined quote process with multiple entry points
+
+### **Complete Sitemap & Information Architecture**
+
+#### **Global Navigation Structure**
+**Mega-menu on desktop, accordion on mobile with strategic CTAs throughout**
+
+**About Us**
+- **Our Story** - Company history, mission, values, and founding story
+- **Why Us** - Competitive advantages, guarantees, and unique value propositions  
+- **Reviews** - Customer testimonials, Google reviews, before/after photos
+- **Our Team** - Meet the crew leaders, office staff, and company leadership
+- **FAQ** - Common questions about moving process, pricing, and policies
+
+**Moving Services** *(Primary SEO category with individual landing pages)*
+- **Local Movers** - Same-city moves, hourly rates, crew size options
+- **Residential Movers** - Home moving services, family-focused approach
+- **Commercial Movers** - Business relocations, office furniture, minimal downtime
+- **Office Movers** - Corporate moves, IT equipment, cubicle systems
+- **Medical / Dental Movers** - Specialized medical equipment, HIPAA compliance
+- **Long Distance Movers** - Interstate moves, cross-country relocations
+- **Moving Labor** - Labor-only services, customer provides truck
+- **Staging Services** - Home staging for real estate, furniture arrangement
+- **PODs Movers** - Loading/unloading portable storage containers
+- **Full Service Movers** - Complete moving solution, packing to unpacking
+- **White Glove Movers** - Premium service, extra care, high-value items
+- **Gun Safe Movers** - Specialized safe moving, security equipment
+- **Bulky Item Movers** - Large furniture, appliances, exercise equipment
+- **Piano Movers** - Piano specialists, proper equipment and training
+- **Hot Tub Movers** - Spa relocation, plumbing disconnection/reconnection
+- **Senior Movers** - Elderly-focused service, downsizing assistance
+- **Apartment Movers** - Multi-story moves, elevator reserves, tight spaces
+- **Condo Movers** - High-rise moves, building regulations compliance
+- **Same Day Movers** - Emergency moves, last-minute relocations
+- **Junk Removal** - Unwanted item disposal, donation coordination
+- **Donation Dropoff** - Charitable donation delivery service
+- **Overnight / Longterm Storage** - Temporary storage solutions
+- **Appliance Services** - Installation, removal, recycling of appliances
+- **Antique / Heirloom Movers** - Valuable item specialists, custom crating
+- **Estate Movers** - Estate sale coordination, family heirloom handling
+
+**Packing Services**
+- **Packing & Unpacking** - Professional packing service, room-by-room unpacking
+- **Moving Supplies** - Boxes, tape, bubble wrap, specialty packing materials
+- **Crating** - Custom wooden crates for artwork, antiques, fragile items
+
+**Service Areas** *(Local SEO landing pages)*
+- **Edmond** - Local moving services, neighborhood-specific information
+- **Norman** - University of Oklahoma area, student moving specialists
+- **Moore** - Post-tornado rebuilding moves, community involvement
+- **Oklahoma City** - Metro area moves, downtown high-rise expertise
+- **Guthrie** - Historic home moves, antique handling specialists
+- **Midwest City** - Military family moves, Tinker AFB relocations
+- **Del City** - Affordable local moves, senior-friendly services
+- **Mustang** - Suburban family moves, school district transitions
+- **Yukon** - Growing community moves, new construction homes
+- **(+ expandable for future cities and neighborhoods)**
+
+**Contact Us**
+- **Get a Quote** - Primary CTA leading to quote flow with Yembo AI integration
+- **Submit a Claim** - Damage claim form, photo upload, insurance process
+- **Join the Team (Careers)** - Job applications, crew member recruitment
+
+**Optional: Blog** *(SEO long-tail keyword capture)*
+- Moving tips and guides
+- Local area information
+- Company news and updates
+- Customer success stories
+
+### **Customer-Facing Features & Integration**
+
+#### **Quote System Integration**:
+**Seamless CRM Pipeline Entry**
+
+*Multi-Channel Quote Entry Points:*
+- **Homepage Hero CTA** - Primary quote button above the fold
+- **Service Page CTAs** - Service-specific quote forms with pre-populated service type
+- **Floating Quote Button** - Persistent quote access on all pages
+- **Exit-Intent Popup** - Last chance quote capture before visitor leaves
+- **Phone Click-to-Call** - One-tap calling that creates lead in CRM
+- **Chat Widget** - AI-powered chat leading to quote form completion
+
+*Yembo AI Visual Survey Integration:*
+- **Photo-Based Estimates** - Customers upload room photos for instant quotes
+- **AI Item Recognition** - Automatic inventory generation from photos
+- **Pricing Calculator** - Real-time quote generation based on AI analysis
+- **Accuracy Guarantees** - AI-generated quotes backed by company guarantee
+- **Schedule Integration** - Available dates shown during quote process
+
+### **Complete Quote Form Process (EXACT IMPLEMENTATION REQUIRED)**
+
+**CRITICAL**: This form flow must be implemented exactly as specified - no freestyle modifications allowed.
+
+**Flow Structure**: Service Type > Move Type > Move Size > Moving From > Moving To > Additional Services > Loader > Email > Name > Phone
+
+#### **Step 1: Service Type Selection**
+- **Moving**
+- **Full Service**
+- **Moving Labor**
+- **White Glove**
+- **Commercial**
+- **Junk Removal**
+
+#### **Step 2: Move Type & Property Type (Conditional Logic)**
+
+**If Commercial Selected:**
+- Property Type: Office | Retail | Warehouse | Medical
+- Move Size: Small Space | Medium Space | Large Space | Few Items
+
+**If Moving, Full Service, or White Glove Selected:**
+*(All three service types follow the same flow)*
+- Property Type: Apartment-Condo | House | Townhouse | Storage
+  - **Apartment-Condo** → Move Size: Studio | 1-2 Bed | 3-4 Bed | Few Items
+  - **House-Townhouse** → Move Size: 1-2 Bed | 3-4 Bed | 5 Bed+ | Few Items
+    - **Additional Checkboxes**: Office, Patio, Garage, Shed
+  - **Storage** → Unit Size: 5×5 | 5×10 | 10×10 | 10×15 | 10×20 | Few Items
+
+**If Moving Labor Selected:**
+- Property Type: Apartment-Condo | House | Townhouse | Storage
+- Labor Type: Load-Only | Unload-Only | Both | Restaging / In-Home
+- *(Then follow same size path as Moving, Full Service, White Glove)*
+
+**If Junk Removal Selected:**
+- Property Type: House | Apartment | Storage | Commercial
+- Junk Volume: Single Item | ¼ Truck | ½ Truck | ¾ Truck | Full Truck | 2+ Trucks
+
+#### **Step 3: Location Details**
+*(All services except single-location jobs)*
+
+**Moving FROM Address:**
+- Google autocomplete address field
+- Stairs/Elevator options
+- Walk Distance selection
+
+**Moving TO Address:**
+- Google autocomplete address field  
+- Stairs/Elevator options
+- Walk Distance selection
+
+**Additional Locations:**
+- "Add more address slides" functionality
+- **Single Address Only**: If job type is Load-Only, Unload-Only, Restaging, or Junk-Removal
+
+#### **Step 4: Additional Info (Multi-Select)**
+- Piano
+- Gun Safe
+- Bulky Item (Hot Tub, Exercise Machine, Play Set, etc.)
+- Antique / Artwork (>$2k)
+- Packing Needed?
+- Need Help Within 24 hrs?
+- Storage Needed?
+
+#### **Step 5: Conditional Questions (Based on Step 4 Selections)**
+- **If Packing** → Minimalist | Normal | Pack Rat
+- **If Piano** → Upright | Baby Grand | Grand
+- **If Gun Safe** → Weight <350 | 350-500 | 500+
+- **If Antique** → Text box + "Need custom crate?" checkbox
+- **If Storage** → Overnight (days?) | Long-term (weeks?)
+- **If Bulky** → Describe item (text field)
+
+#### **Step 6: Contact Info Collection**
+1. **Email** (collected first)
+2. **Name** 
+3. **Phone**
+
+#### **Step 7: Loader (Manual Review Trigger)**
+**If conditions met**: 5 Bed+, Commercial, 24-hr Assist, or Crating needed
+- **Show**: "We'll reach out shortly for a few extra details."
+- **Action**: Route to manual review queue
+
+**Otherwise**: Generate instant quote and display
+
+#### **Critical Implementation Requirements:**
+
+**Conditional Logic:**
+- **Service-Specific Flows**: Each service type follows different property/size paths
+- **Single vs Multi-Location**: Certain job types show only one address field
+- **Dynamic Follow-Up Questions**: Additional questions appear based on previous selections
+- **Manual Review Triggers**: Complex jobs routed to staff review
+
+**Address Management:**
+- **Multiple Address Support**: Add unlimited pickup/delivery/stop locations
+- **Google Autocomplete**: All address fields with API integration
+- **Access Details**: Stairs, elevator, walk distance for each location
+- **Service Area Validation**: Verify addresses are within coverage area
+
+**Technical Integration:**
+- **Tile-Based Interface**: All selections use clickable tiles, no dropdowns
+- **Real-Time Pricing**: Quote updates with each selection (except manual review cases)
+- **CRM Pipeline Integration**: Form data creates leads with proper categorization
+- **Auto-Save**: Progress maintained throughout form completion
+
+*Quote Form Optimization:*
+- **Multi-Step Form** - Progressive disclosure to reduce abandonment
+- **Mobile-First Design** - Thumb-friendly inputs and clear progression
+- **Smart Defaults** - Pre-populate common options and service types
+- **Real-Time Validation** - Immediate feedback on form inputs
+- **Save & Resume** - Allow customers to complete quotes later
+
+#### **Customer Self-Service Portal**:
+**Integrated with CRM Customer Records**
+
+*Customer Dashboard Access:*
+- **Quote Tracking** - View all quotes (pending, accepted, expired)
+- **Job Status Updates** - Real-time job progress from CRM pipeline
+- **GPS Truck Tracking** - Live location of assigned moving crew
+- **Digital Documents** - Access contracts, BOL, receipts, photos
+- **Payment Management** - View invoices, make payments, payment history
+- **Review Requests** - Easy review submission with photo uploads
+
+*Self-Service Features:*
+- **Reschedule Request** - Request date changes with calendar availability
+- **Add Services** - Upgrade to packing, storage, or additional services
+- **Address Changes** - Update pickup/delivery addresses
+- **Crew Communication** - Direct messaging with assigned crew
+- **Damage Claims** - Submit damage reports with photo evidence
+- **Referral Tracking** - Track referral bonuses and payouts
+
+*Account Management:*
+- **Profile Management** - Update contact info, preferences, communication settings
+- **Move History** - Complete history of all moves with ratings and feedback
+- **Saved Addresses** - Store frequently used addresses for easy booking
+- **Family/Business Accounts** - Multiple users under one account
+- **Notification Preferences** - Choose how and when to receive updates
+
+#### **Trust & Credibility Elements**:
+
+*Social Proof Integration:*
+- **Live Review Feed** - Real-time Google, Yelp, Facebook review display
+- **Customer Photos** - Before/after photos from completed moves
+- **Testimonial Videos** - Customer success stories with video testimonials
+- **Move Counter** - Live counter of completed moves and happy customers
+- **Crew Spotlights** - Individual crew member profiles and customer feedback
+
+*Credibility Indicators:*
+- **License & Insurance** - Display DOT numbers, insurance certificates
+- **Industry Associations** - BBB rating, moving association memberships
+- **Awards & Recognition** - Industry awards, local business recognition
+- **Guarantee Information** - Clear explanation of service guarantees
+- **Transparent Pricing** - No hidden fees, clear pricing breakdowns
+
+### **Technical Architecture & CRM Integration**
+
+#### **Lead Generation & CRM Sync**:
+**Real-Time Customer Data Flow**
+
+*Lead Capture Integration:*
+- **Form Submissions** - All quote forms instantly create leads in CRM
+- **Phone Calls** - Click-to-call creates leads with call tracking
+- **Chat Interactions** - AI chat conversations sync to customer records
+- **Email Captures** - Newsletter/guide downloads create nurture leads
+- **Social Media** - Facebook/Instagram lead ads sync to CRM pipeline
+
+*Customer Journey Tracking:*
+- **UTM Parameter Tracking** - Source attribution for all marketing channels
+- **Page View Analytics** - Track customer behavior and conversion paths
+- **Session Recording** - Understand user experience and optimization opportunities
+- **A/B Testing Platform** - Test different CTAs, forms, and conversion elements
+- **Conversion Funnel Analysis** - Identify drop-off points and optimization opportunities
+
+#### **Performance & SEO Optimization**:
+
+*Local SEO Strategy:*
+- **Google My Business** - Integration with review management and posting
+- **Local Schema Markup** - Rich snippets for services, reviews, and business info
+- **Service Area Pages** - Individual landing pages for each city/neighborhood
+- **Local Directory Listings** - Consistent NAP across all local directories
+- **Geo-Targeted Content** - City-specific content and service information
+
+*Technical SEO:*
+- **Core Web Vitals** - Optimized loading speed, interactivity, visual stability
+- **Mobile-First Indexing** - Responsive design with mobile performance priority
+- **Structured Data** - Rich snippets for services, reviews, pricing, availability
+- **XML Sitemaps** - Dynamic sitemaps with service and location pages
+- **Internal Linking** - Strategic linking between service and location pages
+
+*Content Strategy:*
+- **Service-Specific Landing Pages** - Detailed pages for each moving service
+- **Location-Based Content** - City guides, neighborhood information, local tips
+- **Moving Guides** - Comprehensive guides for different types of moves
+- **FAQ Content** - Address common concerns and questions
+- **Blog Content** - Regular content for long-tail keyword capture
+
+### **Website User Experience & Design**
+
+#### **Homepage Design Strategy**:
+**Optimized for Conversion with Trust Elements**
+
+*Above-the-Fold Elements:*
+- **Clear Value Proposition** - "Oklahoma's Most Trusted Moving Company"
+- **Hero Image/Video** - Professional crew in action, happy customers
+- **Primary CTA** - "Get Free Quote" prominently displayed
+- **Trust Indicators** - Years in business, moves completed, star rating
+- **Phone Number** - Large, clickable phone number with local area code
+
+*Homepage Sections:*
+- **Service Overview** - Grid of primary services with icons and descriptions
+- **Why Choose Us** - Key differentiators with supporting evidence
+- **Service Areas** - Map of coverage area with city links
+- **Customer Reviews** - Rotating testimonials with photos and star ratings
+- **Moving Process** - Step-by-step explanation with timeline
+- **Get Quote CTA** - Secondary quote section with different entry point
+
+#### **Service Page Templates**:
+**Consistent Structure for All Moving Services**
+
+*Service Page Structure:*
+- **Service Hero** - Large image, service name, brief description
+- **Service Details** - Comprehensive information about the specific service
+- **Why Choose Us** - Service-specific benefits and advantages
+- **Process Overview** - Step-by-step process for this type of move
+- **Pricing Information** - Transparent pricing structure and factors
+- **Customer Stories** - Testimonials specific to this service type
+- **Related Services** - Cross-sell opportunities and complementary services
+- **FAQ Section** - Service-specific frequently asked questions
+- **Quote CTA** - Service-specific quote form with pre-populated service type
+
+#### **Mobile Optimization**:
+**Mobile-First Design for On-the-Go Customers**
+
+*Mobile UX Priorities:*
+- **Thumb-Friendly Navigation** - Easy one-handed operation
+- **Fast Loading** - Optimized images and minimal render-blocking resources
+- **Click-to-Call** - Prominent phone number with tap-to-call functionality
+- **Simplified Forms** - Minimal fields with smart input types
+- **GPS Integration** - Auto-populate addresses using device location
+- **Progressive Web App** - App-like experience with offline capability
+
+### **Analytics & Conversion Optimization**
+
+#### **Conversion Tracking & Analytics**:
+**Data-Driven Optimization Strategy**
+
+*Key Performance Indicators:*
+- **Lead Conversion Rate** - Percentage of visitors who submit quote forms
+- **Phone Call Conversion** - Click-to-call engagement and call duration
+- **Quote-to-Booking Rate** - CRM integration to track full funnel
+- **Page Performance** - Individual page conversion rates and optimization opportunities
+- **Source Attribution** - ROI tracking for different marketing channels
+
+*A/B Testing Framework:*
+- **CTA Testing** - Different button colors, text, and placement
+- **Form Optimization** - Field reduction, step optimization, mobile improvements
+- **Landing Page Variants** - Different layouts and value propositions
+- **Pricing Display** - Transparent vs. contact-for-pricing approaches
+- **Trust Element Testing** - Different review displays and credibility indicators
+
+This comprehensive marketing website serves as the customer acquisition engine for the entire CRM ecosystem while providing valuable self-service capabilities for existing customers.
+
+### **Landing Page Recreation (Exact Design)**
+
+#### **Page 1: Hero Section**
+**Header Navigation & Trust Bar**
+- **Top Trust Bar**: "Local & Family-Owned | Licensed and Insured | Meals Donated With Every Move | Award-Winning Team"
+- **Main Navigation**: Clean header with High Quality Moving logo, phone number (580) 595-1262
+- **5-Star Reviews Badge**: "5.0 ⭐⭐⭐⭐⭐ Read our 136 reviews"
+
+**Hero Section Layout**
+- **Left Side Content**:
+  - **Trust Badge**: "✓ Trusted by thousands of families around the OKC Metro"
+  - **Main Headline**: "Ready to Move in OKC? Start Your Free Quote!"
+  - **Subheading**: "I need a quote For..."
+  
+- **Quote CTA Button**: Single "Get Quote" or "Start Quote" button replacing the 6 service cards
+- **Hero Image Fade**: When quote button is clicked, mover photo and surrounding content fades away
+- **Form Transition**: Quote form appears with back button navigation
+
+- **Value Propositions** (with icons):
+  - 👑 **100% Satisfaction Guarantee** – Your belongings, treated with care.
+  - ⌛ **Seamless Process** – Fast quotes and a smooth moving experience.
+  - 💲 **No Hidden Fees, Ever** – What you see is what you pay.
+
+**Right Side**: Professional photo of smiling mover in High Quality Moving uniform holding boxes
+
+#### **Page 2: Social Proof & Reviews**
+**Section Header**: "OKC's Most Trusted, Award-Winning Movers"
+**Subheading**: "Trusted by locals, recognized with awards, and loved by customers."
+
+**Awards & Badges Row**:
+- A+ Top Mover badge
+- Local Movers badge
+- BBB Accredited Business 
+- Google 5-star reviews
+- Best Movers in Oklahoma City award
+- Yelp 5-star rating
+- Thumbtack Top Pro 2024
+
+**Elfsight Review Widget Integration**:
+- **Overall Rating**: 5.0 ⭐⭐⭐⭐⭐ (170 reviews)
+- **Platform Breakdown**: Google 5.0 | Facebook 5.0 | Yelp 5.0
+- **"Write a review" CTA button**
+
+**Elfsight Customer Review Widget** (8 review cards):
+- **Integration**: Elfsight review widget pulls live reviews from Google, Facebook, Yelp
+- **Real-Time Updates**: Reviews automatically sync from all platforms
+- **Individual Reviews** showing customer names, photos, 5-star ratings, and review text
+- **Sample Reviews**:
+  - "High quality movers did an amazing job! Very hard-working. Helped us pack and move..."
+  - "The gentleman that came to move refrigerator were here on time did job efficiently in no..."
+  - "Wanting to Thank Cameron and D for doing an excellent job with moving my furniture..."
+  - And 5 more similar authentic customer reviews
+- **Load More Button**: "Load More" at bottom to show additional reviews
+
+**Elfsight Setup Notes**:
+```typescript
+// Elfsight review widget integration
+interface ElfsightConfig {
+  widget: "elfsight-app-reviews";
+  sources: ["google", "facebook", "yelp"];
+  displayCount: 8;
+  layout: "grid";
+  showLoadMore: true;
+  customStyling: "match brand colors (gold #D4A855)";
+}
+```
+
+#### **Page 3: Pricing & Quote Section**
+**Animated Header**: "➜ BOOK NOW ➜ BOOK NOW ➜ BOOK NOW" (scrolling text)
+
+**Quote CTA Section** (Gold background):
+- **Headline**: "Get Your Instant Moving Quote Less than 60 Seconds"
+- **Subheading**: "No Stress, No Hidden Fees, Just Quick and Accurate Estimates!"
+- **Description**: "Our seamless online system takes less than a minute to give you a personalized moving quote tailored to your needs."
+- **CTA**: "Click Below and See for Yourself:"
+- **Primary Button**: "Get Your Free Moving Quote Now!" (large black button)
+
+**Pricing Section** (Dark background):
+- **Section Title**: "Simple and Transparent Moving Rates in Oklahoma City"
+- **Subtitle**: "Affordable hourly rates with no surprises – pay only for the time you need."
+
+**Pricing Cards** (3 gold cards with icons):
+1. **2 Movers + Truck** (No Hidden Fees) - $169/hour* - "→ BOOK NOW"
+2. **3 Movers + Truck** (No Hidden Fees) - $229/hour* - "→ BOOK NOW" 
+3. **4 Movers + Truck** (No Hidden Fees) - $289/hour* - "→ BOOK NOW"
+
+**Fine Print**: "*conditions apply" | "*All jobs have a 2-hour minimum and include a 30-mile radius. Additional time is charged in 15-minute increments."
+
+#### **Page 4: Moving Process**
+**Section Title**: "Our Stress-Free Moving Process, Step by Step"
+
+**5-Step Process** (with circular photos and arrows):
+
+1. **On Moving Day 🚚**
+   - Photo: Moving truck at house
+   - Description: Highly trained team arrives on time with clean, fully stocked 26-ft truck
+   - **Why It Matters**: Professional, organized start ensures smooth moving day
+
+2. **Preparation 🛡**
+   - Photo: Floor protection setup
+   - Description: Floor runners, door pads, door jamb protectors, specialty padding
+   - **Why It Matters**: Home deserves care and respect—meticulous preparation
+
+3. **Protection 📦**
+   - Photo: Furniture wrapping
+   - Description: Quilted moving blankets, shrink wrap, bands, disassembly/reassembly
+   - **Why It Matters**: Belongings stay secure, delicate items handled with care
+
+4. **Transport & Placement 🪑**
+   - Photo: Loading truck efficiently
+   - Description: Expert truck loading, secure items, place furniture exactly where wanted
+   - **Why It Matters**: Hassle-free settling in, everything in right spot
+
+5. **Final Walkthrough & Completion 🎉**
+   - Photo: Final walkthrough with customer
+   - Description: Final walkthrough, secure payment (cash/debit/credit), job completion
+   - **Why It Matters**: Your happiness is our top priority
+
+**Bottom CTA**: "Get Your Free Moving Quote!" (gold button)
+
+#### **Page 5: What Sets Us Apart**
+**Section Title**: "What Sets High Quality Moving Apart"
+
+**6 Key Differentiators** (dark cards with gold icons):
+
+1. **Instant Quotes & Seamless Booking** 📋✓
+   - Get quote in minutes and book instantly
+   - Process tailored to unique needs
+   - Prioritize your time, seamless experience
+
+2. **No Hidden Fees, Ever** 🏷️⚡
+   - Transparent pricing, no surprise charges
+   - What you see on estimate is what you pay
+   - Honest, upfront pricing, confident decision
+
+3. **Highly Trained, Award-Winning Team** 🏆
+   - Award-winning experts, professional and skilled
+   - Personal touch to every move
+   - Meet your team before move day
+
+4. **We Donate 5 Meals for Every Move** 🗨️💬
+   - For every job, donate 5 meals to local families
+   - Strengthen community we all share
+   - Your move is part of something bigger
+
+5. **Top-Tier Customer Care** 💬👥
+   - More than movers—effortless, stress-free experience
+   - First call to final walkthrough support
+   - Dedicated to satisfaction at every step
+
+6. **Family-Owned & Local to OKC** 🏠
+   - Family-owned business rooted in OKC community
+   - Personal, neighborly touch with every move
+   - Supporting local business that truly cares
+
+#### **Page 6: Final CTA**
+**Gold Background Section**:
+- **Headline**: "Ready to experience the royal treatment? Get your free quote in minutes!"
+- **Subheading**: "Don't wait—secure your spot for a stress-free move today!"
+- **Primary CTA**: "Start Your Free Quote Now!" (large black button)
+
+#### **Page 7: Footer**
+**Three-Column Footer Layout**:
+
+**Column 1: Licensed & Insured**
+- DOT#: 382190382193821
+- OK License #: 0231980291
+- Award badges row (6 certification badges)
+
+**Column 2: Payment Methods**
+- MasterCard, Apple Pay, American Express, Visa icons
+- "100% Satisfaction Guaranteed"
+
+**Column 3: Contact Information**
+- Phone: (580) 595-1262
+- Email: admin@highqualitymoving.net
+- Hours: Mon-Sat: 8 AM - 6 PM
+
+**Copyright**: "© 2025 High Quality Moving. All rights reserved. | Privacy Policy."
+
+### **Technical Implementation Notes**
+
+**Color Scheme**:
+- **Primary Gold**: #D4A855 (buttons, accents, cards)
+- **Dark Background**: #1F1F1F (sections, cards)
+- **White Text**: #FFFFFF (primary text)
+- **Black**: #000000 (CTA buttons)
+
+**Typography**:
+- **Headlines**: Bold, large font for impact
+- **Body Text**: Clean, readable sans-serif
+- **CTAs**: Bold, contrasting button text
+
+**CTA Integration Points**:
+- Hero section service cards → Direct to quote form with pre-selected service
+- Multiple "Get Free Quote" buttons → Lead capture form
+- "Book Now" pricing buttons → Quote form with crew size pre-selected
+- Phone number → Click-to-call with lead creation
+- All CTAs funnel into CRM pipeline as "Hot Lead" status
+
+**Mobile Optimization**:
+- Service grid converts to scrollable cards
+- Pricing cards stack vertically
+- Process steps become vertical timeline
+- All buttons thumb-friendly size
+- Phone number prominent and clickable
+
+This landing page design is perfectly optimized for conversion with multiple quote entry points, strong social proof, transparent pricing, and clear value propositions that align with the comprehensive CRM system we've planned.
+
+### **Quote Form Flow Process (Tile-Based Navigation)**
+
+**Form Interaction Design**:
+- **Hero Section**: Single "Get Quote" button replaces 6 service cards
+- **Fade Transition**: Mover photo and background content fade away when form starts
+- **Tile-Based Steps**: Each form step displayed as interactive tiles
+- **Back Button**: Always visible for easy navigation between steps
+- **Progress Indicator**: Visual progress bar showing completion status
+
+**Quote Form Flow Steps** (Based on Flowchart):
+
+**Step 1: Contact Information**
+- **Options**: Contact Info tile
+- **Fields**: Name, phone, email
+- **Validation**: Real-time validation with error states
+
+**Step 2: Move Type Selection**
+- **Tiles Available**:
+  - **Commercial Move** → Business/office relocation
+  - **Furniture Only Move/Packing/Unpacking** → Specific services
+  - **Residence** → Home/apartment moves
+  - **Just Delivery** → Delivery-only services
+
+**Step 3: Service Type (Based on Move Type)**
+*If Commercial Move selected:*
+- **Packing Type**: Full packing, partial packing, no packing
+- **Move Details**: Office size, equipment, timeline
+
+*If Furniture Only/Packing selected:*
+- **Service Options**: Moving only, packing only, unpacking only, combination
+- **Item Details**: Specific furniture pieces, quantity
+
+*If Residence selected:*
+- **Property Type**: House, apartment, condo, other
+- **Size Selection**: Studio, 1-bed, 2-bed, 3-bed, 4-bed, 5+ bed
+
+*If Just Delivery selected:*
+- **Delivery Type**: Single item, multiple items, appliances
+- **Special Requirements**: Heavy items, stairs, assembly
+
+**Step 4: Property Details** (For Residence)
+- **Current Home**: Property type, size, special considerations
+- **New Home**: Property type, accessibility, parking
+
+**Step 5: Move Details**
+- **Move Date**: Preferred date with calendar picker
+- **Flexibility**: Flexible dates, specific date only
+- **Timing**: Morning, afternoon, anytime
+- **Distance**: Local, long-distance options
+
+**Step 6: Special Services & Add-ons**
+- **Packing Services**: Full service, partial, supplies only
+- **Special Items**: Piano, safe, artwork, antiques
+- **Storage**: Temporary storage needs
+- **Additional Services**: Cleaning, handyman, staging
+
+**Step 7: Access & Logistics**
+- **Pickup Location**: Stairs, elevator, walk distance, parking
+- **Delivery Location**: Similar access questions
+- **Special Instructions**: Gates, codes, timing restrictions
+
+**Step 8: Budget & Preferences**
+- **Budget Range**: Approximate budget expectations
+- **Communication**: Preferred contact method and times
+- **Priority**: Schedule priority, service level preferences
+
+**Step 9: Review & Submit**
+- **Summary Review**: All selections displayed for confirmation
+- **Edit Options**: Quick links to modify any step
+- **Terms Agreement**: Service terms and conditions
+- **Submit Button**: "Get My Free Quote" final CTA
+
+**Step 10: Thank You & Next Steps**
+- **Confirmation**: Quote submitted successfully
+- **Timeline**: When to expect quote response
+- **Immediate Options**: Call now, schedule consultation
+- **Account Creation**: Optional customer portal signup
+
+**Technical Implementation Notes**:
+
+**Form State Management**:
+```typescript
+interface QuoteFormState {
+  step: number;
+  data: {
+    contact: ContactInfo;
+    moveType: MoveType;
+    serviceDetails: ServiceDetails;
+    timeline: Timeline;
+    specialServices: SpecialServices[];
+    logistics: LogisticsInfo;
+    preferences: CustomerPreferences;
+  };
+  validation: ValidationState;
+  progress: number; // 0-100%
+}
+```
+
+**CRM Integration Points**:
+- **Step 1 Complete**: Create "Hot Lead" in CRM with contact info
+- **Step 3 Complete**: Update lead with move type and service classification
+- **Step 9 Submit**: Convert to "Opportunity" status with complete quote request
+- **Step 10**: Trigger automated follow-up sequence and task creation
+
+**Form Optimization Features**:
+- **Save & Resume**: Allow customers to save progress and return later
+- **Smart Defaults**: Pre-populate common selections based on previous choices
+- **Conditional Logic**: Show/hide steps based on previous selections
+- **Mobile Optimization**: Thumb-friendly tiles and navigation
+- **Progress Persistence**: Maintain form state across browser sessions
+- **Abandon Recovery**: Email follow-up for incomplete forms with resume link
+
+**Visual Design Elements & Input Types**:
+- **Tile Design**: Card-based selection with hover states and visual feedback
+- **Clickable Only**: All main options are clickable tiles/buttons, NO dropdowns for primary selections
+- **Limited Dropdowns**: Only for secondary/additional questions within a step
+- **Text Inputs**: Only for specific fields:
+  - **Name, Email, Phone**: Contact information fields
+  - **Addresses**: Google Autocomplete textboxes for pickup/delivery addresses
+  - **Additional Options**: Text fields only when "Other" or custom option is selected
+- **Animation**: Smooth transitions between steps with fade/slide effects
+- **Typography**: Clear, readable text with proper hierarchy
+- **Color Coding**: Consistent gold accent color (#D4A855) for CTAs and progress
+- **Icons**: Visual icons for each selection to improve usability
+
+**Input Field Specifications**:
+```typescript
+// Form input types by category
+interface FormInputTypes {
+  // PRIMARY SELECTIONS - Always clickable tiles
+  moveType: "clickable-tiles"; // Commercial, Residence, etc.
+  serviceType: "clickable-tiles"; // Based on move type
+  propertySize: "clickable-tiles"; // Studio, 1-bed, 2-bed, etc.
+  moveDate: "clickable-tiles"; // Date picker tiles
+  specialServices: "clickable-tiles"; // Packing, piano, etc.
+  
+  // TEXT INPUTS ONLY
+  contactInfo: {
+    name: "text-input";
+    email: "text-input-email";
+    phone: "text-input-phone";
+  };
+  addresses: {
+    pickup: "google-autocomplete-textbox";
+    delivery: "google-autocomplete-textbox";
+  };
+  
+  // DROPDOWNS - Limited use only
+  additionalQuestions: "dropdown"; // Only for secondary/follow-up questions
+  customOptions: "text-input"; // Only when "Other" tile is selected
+}
+```
+
+**Google Autocomplete Integration**:
+- **Address Fields**: Both pickup and delivery addresses use Google Places API
+- **Auto-completion**: Real-time address suggestions as user types
+- **Validation**: Ensure addresses are within service area
+- **Formatting**: Standardized address format for CRM integration
+
+### **Sales Page (Quote Results & Booking)**
+
+**Page Purpose**: After form completion, customer is directed to personalized quote results page with instant booking capability and CRM calendar integration.
+
+#### **Quote Display Section**
+
+**Main Quote Header**:
+- **"Here is your quote:"**
+
+**Quote Breakdown Display**:
+- **Range Estimate**: "Quote breakdown with the average time it takes to move a [property type] from (X)hours to (Y)hours with [Z] movers and costs between $[low] - $[high]."
+- **Refined Estimate**: "Based on the details you provided, your estimate will take closer to **[final hours]** with **[final movers]** and **[final trucks]**"
+
+**Visual Quote Display** (Icons with values):
+```
+⏰ [final hours] Hours    👥 [final movers] Movers    🚛 [final trucks] Trucks
+```
+
+**Pricing Summary**:
+- **"At a hourly rate of $[rate] you should budget for about"**
+- **Final Price Display**: **$[final estimate]** (large, prominent)
+
+**Estimate Disclaimer**:
+"This is just an estimate assuming averages on the number of furniture and box count. Also accounting for drive time, stairs, elevators."
+
+#### **About Our Rates Section**
+
+**Rate Breakdown**:
+- "Our base rate is **$169 per hour** for 2 men and the truck"
+- "Each additional man is **$60/hr**"
+- "Each additional truck is **$30/hr**"
+- "We charge you in **15 min increments**"
+- "The time starts once we pick the first item up and **you have us for as long as you need**"
+
+**No Hidden Fees Promise**:
+- "**There are no hidden fees**"
+
+**What's Included** (Enhanced value proposition):
+- ✅ **Truck gas and mileage all included**
+- ✅ **Door and floor protection**
+- ✅ **Blankets, tape, wrap, and bands**
+- ✅ **Professional Crew Background Checked and Highly Trained**
+- ✅ **We donate 5 meals for every move completed**
+- ✅ **Furniture Assembly and Disassembly** offers hassle-free setup in your new home
+- ✅ **100% Satisfaction Guarantee** - Your belongings, treated with care
+- ✅ **Licensed and Insured** - Full protection for your peace of mind
+- ✅ **Local & Family-Owned** - Supporting your OKC community
+- ✅ **Award-Winning Team** - Recognized excellence in moving services
+- ✅ **Real-Time GPS Tracking** - Know exactly where your belongings are
+- ✅ **Same-Day Availability** - Flexible scheduling for your convenience
+
+#### **Calendar Booking Section**
+
+**Booking Header**:
+- **"What day would you be needing help?"**
+
+**Calendar Integration**:
+- **Full Month Calendar**: Current month displayed with clickable dates
+- **CRM Integration**: Connected to in-house CRM system for real-time availability
+- **Date Selection**: Customer clicks on available date
+- **Unavailable Dates**: Grayed out or marked as unavailable based on CRM scheduling
+
+**Time Selection** (After date selection):
+- **Available Hours**: Show hourly time slots for selected date
+- **Business Hours**: Display only when company is open/available
+- **Real-Time Availability**: Connected to CRM dispatch calendar
+- **Time Slot Display**: 
+  ```
+  Morning:    8:00 AM  |  9:00 AM  |  10:00 AM  |  11:00 AM
+  Afternoon:  12:00 PM |  1:00 PM  |  2:00 PM   |  3:00 PM
+  Evening:    4:00 PM  |  5:00 PM  |  6:00 PM
+  ```
+
+#### **Booking Actions Section**
+
+**Primary CTA**:
+- **"Book My Move"** (Large gold button)
+- **Action**: Creates confirmed booking in CRM, moves customer to "Booked" status
+
+**Enhanced Quote Option**:
+- **"Get a more accurate quote with Yembo"** (Secondary button)
+- **Visual**: GIF or animation showing photo upload process
+
+**Estimate Disclaimer**:
+- "*This estimate is calculated based on room sizes, item quantities, distance, drive time, stairs, elevator access, walk distance, and bulky items. Final pricing may vary based on actual conditions during the move."
+
+#### **FAQ & Additional Actions**
+
+**Frequently Asked Questions**:
+- **"What if my move takes longer than estimated?"** - You only pay for the time we actually work
+- **"Can I reschedule my booking?"** - Yes, with 24-hour notice (no fees)
+- **"What if I have more items than estimated?"** - We'll adjust on moving day, transparent pricing
+- **"Do you provide packing materials?"** - Yes, all materials included in service
+- **"What areas do you serve?"** - Full OKC metro area coverage
+- **"Are you licensed and insured?"** - Fully licensed (DOT#: 382190382193821) and insured
+
+**Additional Actions**:
+- **"Start Over"** - Return to beginning of quote form
+- **"Go Back"** - Return to previous form step
+- **"Call Us"** - Direct phone contact (580) 595-1262
+- **"Live Chat"** - Immediate assistance
+
+#### **Technical Implementation**
+
+**CRM Integration Points**:
+```typescript
+interface SalesPageIntegration {
+  // Quote calculation using CRM estimation engine
+  quoteGeneration: {
+    basedOn: "form responses + CRM estimation algorithms";
+    factors: ["property size", "service type", "logistics", "special items"];
+    pricing: "real-time calculation using CRM pricing engine";
+  };
+  
+  // Calendar integration
+  calendarSync: {
+    availability: "real-time from CRM dispatch calendar";
+    booking: "creates confirmed job in CRM system";
+    notifications: "automatic crew assignment and customer confirmation";
+  };
+  
+  // Customer status progression
+  statusUpdates: {
+    quoteViewed: "update lead status to 'Quote Viewed'";
+    dateSelected: "update to 'Scheduling in Progress'";
+    bookingConfirmed: "convert to 'Booked' status";
+    yemboUpgrade: "flag for enhanced quote with photos";
+  };
+}
+```
+
+**Yembo AI Integration**:
+- **Photo Upload Interface**: Simple drag-and-drop or camera upload
+- **AI Processing**: Automatic item recognition and count
+- **Enhanced Quote**: More accurate pricing based on actual items
+- **CRM Update**: Enhanced quote replaces initial estimate
+
+**Mobile Optimization**:
+- **Responsive Calendar**: Touch-friendly date and time selection
+- **Thumb-friendly Buttons**: Large, easy-to-tap booking actions
+- **Simplified FAQ**: Expandable/collapsible sections
+- **One-tap Actions**: Call, text, or live chat options
+
+This sales page serves as the conversion point where leads become booked customers, with seamless CRM integration and multiple paths to booking.
 
 **LONG-DISTANCE MOVES (301–500 miles):**
 1. Attempt Single-Day Load-Drive-Unload within 14-hour DOT duty window
@@ -2277,6 +5077,114 @@ The `examples/` folder contains practical implementation examples for the CRM ap
 - Marketing Automation Guide: https://www.bannerbear.com/blog/7-social-media-processes-you-can-automate-with-bannerbear/
 - API Introduction: https://www.bannerbear.com/blog/introducing-the-bannerbear-api/
 
+**Bannerbear Review Template System**:
+- **Stock Image Template**: Crew holding poster/board for personalized review requests
+- **Dynamic Text Overlay**: Customer name insertion on poster via API
+- **Template Variables**: `{{customer_name}}`, `{{crew_names}}`, `{{company_logo}}`
+- **Image Delivery**: Automated generation and attachment to review request emails/SMS
+- **Campaign Integration**: Seamless integration with review follow-up automation sequences
+
+### Marketing Website Structure & Sales Page Functionality
+
+**Website Architecture**:
+- **Static Content**: All marketing pages (About, Services, Contact, etc.) are static for optimal performance
+- **Dynamic Quote Form**: Interactive form flow with tile-based navigation and Google autocomplete
+- **Sales Page Integration**: Dynamic quote results page with CRM booking integration
+- **Ad Landing Pages**: UTM-based dynamic phone number insertion (DNI) for campaign tracking
+
+**UTM Parameter & DNI System**:
+- **Dynamic Number Insertion**: Each ad campaign gets unique tracking phone number based on UTM parameters
+- **Campaign Attribution**: UTM parameters capture source, medium, campaign, content, and term data
+- **Form Tracking**: UTM data automatically passed to CRM when customer submits quote form
+- **Call Tracking**: DNI numbers route to main line but track which campaign generated the call
+- **CRM Integration**: All UTM parameters stored in customer record for ROI analysis and attribution
+- **Multi-Touch Attribution**: Track customer journey across multiple touchpoints and campaigns
+
+**Sales Page Features**:
+- **Persistent Quote URLs**: Each completed quote generates a unique, bookmarkable URL
+- **Quote Link Distribution**: Automatic email delivery of sales page URL upon form completion
+- **Edit Quote Functionality**: Customers can modify their original form selections before booking
+- **Inventory Management**: Direct customer access to edit inventory items through secure portal
+- **Calendar Booking**: Integrated scheduling system connects to CRM dispatch calendar
+- **Real-Time Availability**: Live calendar slots synchronized with crew and equipment availability
+- **Quote Recalculation**: Automatic pricing updates when customers modify selections or inventory
+- **CRM Integration**: Seamless data flow from website quote to CRM customer record
+
+**Customer Experience Flow**:
+1. **Form Completion** → **Quote Generation** → **Sales Page URL** → **Email Delivery**
+2. **Customer Returns** → **Review Quote** → **Edit Selections/Inventory** → **Book Appointment**
+3. **Booking Confirmation** → **CRM Job Creation** → **Crew Assignment** → **Customer Notification**
+
+**Technical Implementation**:
+- **URL Structure**: `/quote/[unique-id]` for each generated quote
+- **Session Persistence**: Customer selections saved across browser sessions
+- **Security**: Secure customer portal access for inventory editing
+- **Responsive Design**: Mobile-optimized interface for all devices
+- **Performance**: Fast loading with optimized static content delivery
+
+### Weather Integration & Route Optimization Enhancements
+
+**Weather Intelligence System**:
+- **CRM Weather Dashboard**: Real-time weather alerts affecting scheduled jobs with automatic rescheduling suggestions
+- **Crew App Weather Integration**: Live weather warnings, safety alerts, and equipment recommendations for field crews
+- **Customer Communication**: Automatic weather-related notifications for potential delays or rescheduling needs
+- **Job Planning**: Weather-based crew size and equipment adjustments (extra tarps, delays for rain/snow)
+- **Safety Protocols**: Automatic safety alerts for dangerous weather conditions affecting moving operations
+
+**Advanced Route Optimization**:
+- **Multi-Stop Route Planning**: Optimize crew routes for multiple pickups/deliveries in single day
+- **Real-Time Traffic Integration**: Dynamic route adjustments based on live traffic conditions
+- **Fuel Cost Optimization**: Route planning that considers fuel efficiency and costs
+- **Crew Territory Optimization**: Geographic clustering for efficient crew territory coverage
+- **Time Window Optimization**: Balance customer time preferences with operational efficiency
+
 ## OTHER CONSIDERATIONS:
 
-[Any other considerations or specific requirements - great place to include gotchas that you see AI coding assistants miss with your projects a lot]
+### **AI Development Standards & Expectations**
+
+**Modularity & Flexibility Requirements**:
+- **No Large Code Blobs**: Break down complex functionality into smaller, manageable pieces
+- **Easy Future Changes**: Design architecture to allow modifications without breaking existing functionality
+- **Modular Design**: Create reusable components and utilities that can be easily maintained and extended
+- **Loose Coupling**: Minimize dependencies between different parts of the system
+
+**Implementation Expectations**:
+- **Complete Specification Coverage**: Every requirement in this comprehensive specification must be implemented - no shortcuts or skipped features
+- **Attention to Detail**: Pay close attention to every detail, even if it requires more time and resources
+- **Quality Over Speed**: Take the necessary time to implement features correctly the first time rather than rushing
+- **Comprehensive Implementation**: Address every aspect of the specification thoroughly and completely
+
+**Development Approach**:
+- **Large Codebase Awareness**: Recognize this is a substantial enterprise-level system requiring careful planning and execution
+- **Systematic Implementation**: Work through requirements methodically to ensure nothing is missed
+- **Future-Proof Design**: Build with scalability and long-term maintenance in mind
+- **Business Logic Priority**: Focus on correctly implementing the complex business workflows and rules outlined in this specification
+
+### **Code Quality & Architecture Standards**
+
+**Modularity & Flexibility Requirements**:
+- **No Large Code Blobs**: Keep all functions, components, and modules under 200 lines max
+- **Single Responsibility Principle**: Each module, component, and function should have one clear purpose
+- **Easy Future Modifications**: Code structure must allow for easy feature additions and changes without breaking existing functionality
+- **Loose Coupling**: Minimize dependencies between modules to allow independent updates and testing
+- **High Cohesion**: Related functionality should be grouped together logically
+
+**Development Standards**:
+- **Attention to Detail**: Every requirement in this specification must be implemented completely - no shortcuts or skipped features
+- **Quality Over Speed**: Take the time needed to implement features correctly the first time rather than rushing
+- **Comprehensive Implementation**: Address every detail in the specification, even if it requires more development time and resources
+- **Future-Proof Architecture**: Design with scalability and maintainability in mind for long-term success
+
+**Code Organization Principles**:
+- **Feature-Based Structure**: Organize code by business features rather than technical layers
+- **Shared Logic Isolation**: Keep all business logic in shared packages to ensure consistency across applications
+- **Clear Separation of Concerns**: Separate UI, business logic, data access, and external integrations
+- **Consistent Patterns**: Use established patterns throughout the codebase for predictability and maintainability
+- **Documentation**: Every complex business rule and integration should be clearly documented
+
+**Technical Debt Prevention**:
+- **Refactor Early**: Address code quality issues immediately rather than accumulating technical debt
+- **Test Coverage**: Comprehensive testing for all business logic and critical user flows
+- **Code Reviews**: All significant changes should be reviewed for architectural consistency
+- **Performance Monitoring**: Track and optimize performance bottlenecks proactively
+- **Security First**: Implement security best practices from the beginning, not as an afterthought

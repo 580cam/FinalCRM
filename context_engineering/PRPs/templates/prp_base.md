@@ -58,24 +58,26 @@ Template optimized for AI agents to implement features with sufficient context a
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
-```python
-# CRITICAL: [Library name] requires [specific setup]
-# Example: FastAPI requires async functions for endpoints
-# Example: This ORM doesn't support batch inserts over 1000 records
-# Example: We use pydantic v2 and  
+```typescript
+// CRITICAL: [Library name] requires [specific setup]
+// Example: Next.js 14 App Router requires async Server Components
+// Example: Supabase client requires different initialization for server vs client
+// Example: We use TypeScript strict mode and Tailwind CSS
+// Example: Shared business logic must be in packages/shared/ for monorepo consistency
 ```
 
 ## Implementation Blueprint
 
 ### Data models and structure
 
-Create the core data models, we ensure type safety and consistency.
-```python
+Create the core data models and TypeScript interfaces to ensure type safety and consistency.
+```typescript
 Examples: 
- - orm models
- - pydantic models
- - pydantic schemas
- - pydantic validators
+ - Supabase database types
+ - TypeScript interfaces and types  
+ - Zod schemas for validation
+ - React component prop types
+ - API request/response types
 
 ```
 
@@ -83,15 +85,20 @@ Examples:
 
 ```yaml
 Task 1:
-MODIFY src/existing_module.py:
-  - FIND pattern: "class OldImplementation"
-  - INJECT after line containing "def __init__"
-  - PRESERVE existing method signatures
+MODIFY packages/shared/types/index.ts:
+  - FIND pattern: "export interface ExistingType"
+  - INJECT after existing interfaces
+  - PRESERVE existing type structure
 
-CREATE src/new_feature.py:
-  - MIRROR pattern from: src/similar_feature.py
-  - MODIFY class name and core logic
+CREATE packages/shared/api/new-feature.ts:
+  - MIRROR pattern from: packages/shared/api/similar-feature.ts
+  - MODIFY function names and core logic
   - KEEP error handling pattern identical
+
+CREATE packages/crm-web/app/new-feature/page.tsx:
+  - MIRROR pattern from: packages/crm-web/app/existing-page/page.tsx
+  - MODIFY component logic for new feature
+  - KEEP layout and navigation structure
 
 ...(...)
 
@@ -102,42 +109,54 @@ Task N:
 
 
 ### Per task pseudocode as needed added to each task
-```python
+```typescript
 
-# Task 1
-# Pseudocode with CRITICAL details dont write entire code
-async def new_feature(param: str) -> Result:
-    # PATTERN: Always validate input first (see src/validators.py)
-    validated = validate_input(param)  # raises ValidationError
+// Task 1
+// Pseudocode with CRITICAL details dont write entire code
+async function newFeature(param: string): Promise<Result> {
+    // PATTERN: Always validate input first (see packages/shared/utils/validation.ts)
+    const validated = validateInput(param); // throws ValidationError
     
-    # GOTCHA: This library requires connection pooling
-    async with get_connection() as conn:  # see src/db/pool.py
-        # PATTERN: Use existing retry decorator
-        @retry(attempts=3, backoff=exponential)
-        async def _inner():
-            # CRITICAL: API returns 429 if >10 req/sec
-            await rate_limiter.acquire()
-            return await external_api.call(validated)
+    // GOTCHA: Supabase requires proper client initialization
+    const supabase = createClient(); // see packages/shared/supabase/client.ts
+    
+    // PATTERN: Use existing error handling
+    try {
+        // CRITICAL: Row Level Security must be enabled
+        const { data, error } = await supabase
+            .from('table_name')
+            .select('*')
+            .eq('param', validated);
         
-        result = await _inner()
-    
-    # PATTERN: Standardized response format
-    return format_response(result)  # see src/utils/responses.py
+        if (error) throw error;
+        
+        // PATTERN: Standardized response format  
+        return formatResponse(data); // see packages/shared/utils/responses.ts
+    } catch (error) {
+        // PATTERN: Consistent error handling
+        return handleError(error); // see packages/shared/utils/errors.ts
+    }
+}
 ```
 
 ### Integration Points
 ```yaml
 DATABASE:
-  - migration: "Add column 'feature_enabled' to users table"
+  - migration: "Add column 'feature_enabled' to users table via Supabase migration"
   - index: "CREATE INDEX idx_feature_lookup ON users(feature_id)"
+  - RLS: "Enable Row Level Security policies for new table"
   
-CONFIG:
-  - add to: config/settings.py
-  - pattern: "FEATURE_TIMEOUT = int(os.getenv('FEATURE_TIMEOUT', '30'))"
+TYPES:
+  - add to: packages/shared/types/database.ts
+  - pattern: "export interface NewFeatureType { ... }"
   
 ROUTES:
-  - add to: src/api/routes.py  
-  - pattern: "router.include_router(feature_router, prefix='/feature')"
+  - add to: packages/crm-web/app/api/new-feature/route.ts  
+  - pattern: "export async function GET/POST/PUT/DELETE"
+  
+COMPONENTS:
+  - add to: packages/shared/components/
+  - pattern: "Mirror existing component structure and props"
 ```
 
 ## Validation Loop
@@ -145,60 +164,70 @@ ROUTES:
 ### Level 1: Syntax & Style
 ```bash
 # Run these FIRST - fix any errors before proceeding
-ruff check src/new_feature.py --fix  # Auto-fix what's possible
-mypy src/new_feature.py              # Type checking
+npm run lint --fix                   # Auto-fix ESLint errors
+npm run type-check                   # TypeScript type checking
 
 # Expected: No errors. If errors, READ the error and fix.
 ```
 
 ### Level 2: Unit Tests each new feature/file/function use existing test patterns
-```python
-# CREATE test_new_feature.py with these test cases:
-def test_happy_path():
-    """Basic functionality works"""
-    result = new_feature("valid_input")
-    assert result.status == "success"
+```typescript
+// CREATE __tests__/new-feature.test.tsx with these test cases:
+describe('NewFeature', () => {
+  test('renders correctly with valid props', () => {
+    const result = render(<NewFeature prop="valid_input" />);
+    expect(result.getByText('Expected Text')).toBeInTheDocument();
+  });
 
-def test_validation_error():
-    """Invalid input raises ValidationError"""
-    with pytest.raises(ValidationError):
-        new_feature("")
+  test('handles validation errors', () => {
+    expect(() => {
+      validateInput("");
+    }).toThrow('ValidationError');
+  });
 
-def test_external_api_timeout():
-    """Handles timeouts gracefully"""
-    with mock.patch('external_api.call', side_effect=TimeoutError):
-        result = new_feature("valid")
-        assert result.status == "error"
-        assert "timeout" in result.message
+  test('handles API errors gracefully', async () => {
+    // Mock Supabase client
+    vi.mocked(supabase).mockResolvedValueOnce({ data: null, error: new Error('API Error') });
+    
+    const result = await newFeature("valid");
+    expect(result.status).toBe("error");
+    expect(result.message).toContain("API Error");
+  });
+});
 ```
 
 ```bash
 # Run and iterate until passing:
-uv run pytest test_new_feature.py -v
+npm test new-feature
 # If failing: Read error, understand root cause, fix code, re-run (never mock to pass)
 ```
 
 ### Level 3: Integration Test
 ```bash
-# Start the service
-uv run python -m src.main --dev
+# Start the development server
+npm run dev
 
-# Test the endpoint
-curl -X POST http://localhost:8000/feature \
+# Test the API endpoint
+curl -X POST http://localhost:3000/api/new-feature \
   -H "Content-Type: application/json" \
   -d '{"param": "test_value"}'
 
 # Expected: {"status": "success", "data": {...}}
-# If error: Check logs at logs/app.log for stack trace
+# If error: Check browser dev tools and terminal for error logs
+
+# Test the UI component
+# Navigate to http://localhost:3000/new-feature in browser
+# Verify component renders and functions work correctly
 ```
 
 ## Final validation Checklist
-- [ ] All tests pass: `uv run pytest tests/ -v`
-- [ ] No linting errors: `uv run ruff check src/`
-- [ ] No type errors: `uv run mypy src/`
-- [ ] Manual test successful: [specific curl/command]
-- [ ] Error cases handled gracefully
-- [ ] Logs are informative but not verbose
+- [ ] All tests pass: `npm test`
+- [ ] No linting errors: `npm run lint`
+- [ ] No type errors: `npm run type-check`
+- [ ] Build succeeds: `npm run build`
+- [ ] Manual test successful: [specific curl/browser test]
+- [ ] Error cases handled gracefully  
+- [ ] Console logs are informative but not verbose
 - [ ] Documentation updated if needed
 
 ---
@@ -207,6 +236,8 @@ curl -X POST http://localhost:8000/feature \
 - ❌ Don't create new patterns when existing ones work
 - ❌ Don't skip validation because "it should work"  
 - ❌ Don't ignore failing tests - fix them
-- ❌ Don't use sync functions in async context
-- ❌ Don't hardcode values that should be config
-- ❌ Don't catch all exceptions - be specific
+- ❌ Don't mix server and client components incorrectly in Next.js
+- ❌ Don't hardcode values that should be environment variables
+- ❌ Don't catch all errors - be specific with error types
+- ❌ Don't put business logic in UI components - keep it in shared packages
+- ❌ Don't skip TypeScript types - always define proper interfaces
