@@ -66,15 +66,11 @@ describe('QuoteForm - Step 2: Move Type & Property (Conditional)', () => {
       '5 bed',
       'Few Items',
     ]);
-    // Extras visible
-    expect(screen.getByRole('group', { name: /large home/i })).toBeInTheDocument();
-    const extras = screen.getByRole('group', { name: /additional areas/i });
-    expect(within(extras).getAllByRole('button').map((b) => b.textContent?.trim())).toEqual([
-      'Office',
-      'Patio',
-      'Garage',
-      'Shed',
-    ]);
+    // Extras visible as a single checkbox with explanatory text
+    const largeGroup = screen.getByRole('group', { name: /large home/i });
+    expect(largeGroup).toBeInTheDocument();
+    expect(within(largeGroup).getByRole('checkbox', { name: /large\?/i })).toBeInTheDocument();
+    expect(within(largeGroup).getByText(/includes extra rooms/i)).toBeInTheDocument();
 
     // Storage path
     await userEvent.click(within(propGroup).getByRole('button', { name: 'Storage' }));

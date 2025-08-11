@@ -1,8 +1,9 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import ServiceTypeStep from '@/components/quote/ServiceTypeStep';
 import MoveDetailsStep, { type MoveDetailsState } from '@/components/quote/MoveDetailsStep';
-import type { ServiceTypeOption } from '@/components/quote/types';
+import LocationDetailsStep from '@/components/quote/LocationDetailsStep';
+import type { ServiceTypeOption, LocationDetailsState } from '@/components/quote/types';
 
 type Props = {
   onBack: () => void;
@@ -12,6 +13,23 @@ export default function QuoteForm({ onBack }: Props) {
   const [step, setStep] = useState<number>(1);
   const [serviceType, setServiceType] = useState<ServiceTypeOption | undefined>(undefined);
   const [moveDetails, setMoveDetails] = useState<MoveDetailsState>({});
+  const [locationDetails, setLocationDetails] = useState<LocationDetailsState>({});
+
+  const isStep2Complete = useMemo(() => {
+    if (!serviceType) return false;
+    const v = moveDetails;
+    if (serviceType === 'Commercial') {
+      return Boolean(v.propertyType && v.commercialSize);
+    }
+    if (serviceType === 'Junk Removal') {
+      return Boolean(v.propertyType && v.junkVolume);
+    }
+    if (serviceType === 'Moving Labor') {
+      return Boolean(v.laborType && v.propertyType && v.residentialSize);
+    }
+    // Residential services
+    return Boolean(v.propertyType && v.residentialSize);
+  }, [serviceType, moveDetails]);
 
   return (
     <div className="absolute inset-0 rounded-xl border border-gray-200 bg-white p-6 shadow-lg">
@@ -58,6 +76,39 @@ export default function QuoteForm({ onBack }: Props) {
                 <button
                   type="button"
                   aria-label="Continue to Step 3"
+                  disabled={!isStep2Complete}
+                  onClick={() => setStep(3)}
+                  className={[
+                    'rounded-lg px-4 py-2 text-sm font-semibold transition border',
+                    isStep2Complete ? 'bg-black text-white border-black hover:opacity-90' : 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed',
+                  ].join(' ')}
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 3 && serviceType && (
+            <>
+              <LocationDetailsStep
+                serviceType={serviceType}
+                moveDetails={moveDetails}
+                value={locationDetails}
+                onChange={(patch) => setLocationDetails((prev) => ({ ...prev, ...patch }))}
+              />
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  type="button"
+                  aria-label="Back to Step 2"
+                  onClick={() => setStep(2)}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold border border-gray-300 text-gray-800 hover:bg-gray-50"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  aria-label="Continue to Step 4"
                   disabled
                   className="rounded-lg px-4 py-2 text-sm font-semibold border bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed"
                 >

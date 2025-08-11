@@ -51,7 +51,7 @@
 
 - [x] Step 1: Service Type (tile-based; 6 options)
 - [x] Step 2: Move Type & Property Type (conditional by service)
-- [ ] Step 3: Location Details (Google Autocomplete; handicaps; multi-address)
+- [x] Step 3: Location Details (Google Autocomplete; handicaps; multi-address)
 - [ ] Step 4: Additional Info (multi-select)
 - [ ] Step 5: Conditional Follow-Ups
 - [ ] Step 6: Contact Info (email → name → phone)
@@ -59,4 +59,8 @@
 - [ ] Real-time pricing integration (shared package)
 - [ ] CRM pipeline integration and autosave
 - [ ] Unit tests for each step and error states
-  - Added: `__tests__/QuoteForm.MoveDetails.test.tsx` covering Step 2 conditional UI across service types
+  - Added: `__tests__/QuoteForm.MoveDetails.test.tsx` (Step 2)
+  - Added: `__tests__/QuoteForm.LocationDetails.test.tsx` (Step 3 single vs dual address flows)
+
+### Notes
+- Set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` in `apps/landing/.env.local` for Google Places Autocomplete to be enabled in production. The UI gracefully falls back to a regular input if missing.

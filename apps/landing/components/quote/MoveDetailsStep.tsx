@@ -27,7 +27,6 @@ export type MoveDetailsState = {
   junkVolume?: JunkVolumeOption;
   // House/Townhouse extras
   isLarge?: boolean;
-  additionalAreas?: Array<'Office' | 'Patio' | 'Garage' | 'Shed'>;
 };
 
 type Props = {
@@ -148,48 +147,23 @@ export default function MoveDetailsStep({ serviceType, value, onChange }: Props)
     const renderHouseTownhouseExtras = () => {
       const inHouseGroup = value.propertyType === 'House' || value.propertyType === 'Townhouse';
       if (!inHouseGroup) return null;
-      const toggleArea = (area: 'Office' | 'Patio' | 'Garage' | 'Shed') => {
-        const list = new Set(value.additionalAreas ?? []);
-        if (list.has(area)) list.delete(area);
-        else list.add(area);
-        onChange({ additionalAreas: Array.from(list) as Array<'Office' | 'Patio' | 'Garage' | 'Shed'> });
-      };
       return (
-        <>
-          <Section title="Large?">
-            <div className="grid grid-cols-2 gap-3 mt-2" role="group" aria-label="Large Home">
-              <button
-                type="button"
-                aria-pressed={Boolean(value.isLarge)}
-                onClick={() => onChange({ isLarge: !value.isLarge })}
-                className={[
-                  'rounded-xl border px-3 py-3 text-sm font-medium text-left transition',
-                  value.isLarge ? 'border-black bg-black text-white shadow' : 'border-gray-300 bg-white hover:border-gray-400',
-                ].join(' ')}
-              >
-                Large?
-              </button>
-            </div>
-          </Section>
-          <Section title="Following">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2" role="group" aria-label="Additional Areas">
-              {(['Office', 'Patio', 'Garage', 'Shed'] as const).map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  aria-pressed={Boolean(value.additionalAreas?.includes(label))}
-                  onClick={() => toggleArea(label)}
-                  className={[
-                    'rounded-xl border px-3 py-3 text-sm font-medium text-left transition',
-                    value.additionalAreas?.includes(label) ? 'border-black bg-black text-white shadow' : 'border-gray-300 bg-white hover:border-gray-400',
-                  ].join(' ')}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </Section>
-        </>
+        <Section title="Large Home">
+          <div className="mt-2" role="group" aria-label="Large Home">
+            <label className="inline-flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                checked={Boolean(value.isLarge)}
+                onChange={() => onChange({ isLarge: !value.isLarge })}
+              />
+              <span className="text-sm text-gray-800">
+                <span className="font-medium">Large?</span>
+                <span className="ml-2 text-gray-600">Includes extra rooms like Office, Patio, Garage, Shed</span>
+              </span>
+            </label>
+          </div>
+        </Section>
       );
     };
 

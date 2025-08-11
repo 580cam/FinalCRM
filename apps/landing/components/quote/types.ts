@@ -90,3 +90,29 @@ export const JUNK_PROPERTY_OPTIONS: JunkPropertyType[] = [
   'Storage',
   'Commercial',
 ];
+
+// Step 3: Location Details
+export type StairsOption = '1 flight' | '2 flight' | '3 flight' | '4 flight' | '5 flight' | '6 flight';
+export const STAIRS_OPTIONS: StairsOption[] = ['1 flight', '2 flight', '3 flight', '4 flight', '5 flight', '6 flight'];
+
+export type WalkDistanceOption = '0-100 ft' | '100-200 ft' | '200-300 ft' | '300-400 ft' | '400-500 ft' | '500+ ft';
+export const WALK_DISTANCE_OPTIONS: WalkDistanceOption[] = [
+  '0-100 ft',
+  '100-200 ft',
+  '200-300 ft',
+  '300-400 ft',
+  '400-500 ft',
+  '500+ ft',
+];
+
+export type AddressInfo = {
+  address?: string;
+  unit?: string;
+  stairs?: StairsOption;
+  walkDistance?: WalkDistanceOption;
+};
+
+export type LocationDetailsState = {
+  from?: AddressInfo;
+  to?: AddressInfo; // optional for single-address flows
+};
