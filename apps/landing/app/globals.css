@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base typography and colors */
+:root {
+  color-scheme: light;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  @apply bg-white text-black antialiased;
+}
+
+.container-xl {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-md bg-black text-white px-6 py-3 font-semibold hover:opacity-90 transition;
+}
+
+.btn-gold {
+  @apply inline-flex items-center justify-center rounded-md bg-gold text-black px-6 py-3 font-semibold hover:opacity-90 transition;
+}
+
+.badge-pill {
+  @apply inline-flex items-center rounded-full border border-gold text-gold px-3 py-1 text-xs font-medium;
+}
+
+.section-title {
+  @apply text-3xl md:text-4xl font-extrabold;
+}
+
+.section-subtitle {
+  @apply text-base md:text-lg text-gray-700;
+}

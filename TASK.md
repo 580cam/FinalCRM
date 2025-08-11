@@ -26,3 +26,23 @@
 ## Cleanup Completed
 
 - Removed redundant `packages/shared/jest.config.ts` (using `jest.config.cjs` exclusively)
+
+## Landing Page (apps/landing)
+
+- [x] Create new Next.js app skeleton in `apps/landing/` with Tailwind CSS
+- [x] Base config files: `tsconfig.json`, `next.config.ts`, `tailwind.config.ts`, `postcss.config.js`, `jest.config.cjs`, `jest.setup.ts`, `next-env.d.ts`
+- [x] Global styles wired via `app/globals.css`
+- [x] App router scaffold: `app/layout.tsx`, `app/page.tsx`
+- [x] Components scaffolded:
+  - `components/Header.tsx` (trust bar + nav)
+  - `components/Hero.tsx` (CTA + image, placeholder quote form)
+  - `components/SocialProof.tsx` (awards + Elfsight placeholder)
+  - `components/PricingSection.tsx` (animated header + cards)
+  - `components/MovingProcess.tsx`
+  - `components/Differentiators.tsx`
+  - `components/FinalCTA.tsx`
+  - `components/Footer.tsx`
+- [x] Minimal tests: `__tests__/Header.test.tsx`, `__tests__/Hero.test.tsx`, `__tests__/SocialProof.test.tsx`
+- [x] Install deps and run tests for landing app
+- [ ] Hook up Elfsight reviews (requires widget ID)
+- [ ] Polish copy, imagery, and brand assets to match spec exactly

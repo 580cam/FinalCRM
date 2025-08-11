@@ -804,7 +804,7 @@ export const CREW_SIZE_BY_CUBIC_FEET = [
 ];
 ```
 
-**Handicap Modifiers (only applies if cuft ≥ 400):**
+**Handicap Modifiers:**
 | Handicap Type      | Modifier (%) | Rule      |
 |--------------------|--------------|-----------|
 | Each flight stairs | +9%          | Additive  |
@@ -4259,83 +4259,6 @@ interface ElfsightConfig {
 
 This landing page design is perfectly optimized for conversion with multiple quote entry points, strong social proof, transparent pricing, and clear value propositions that align with the comprehensive CRM system we've planned.
 
-### **Quote Form Flow Process (Tile-Based Navigation)**
-
-**Form Interaction Design**:
-- **Hero Section**: Single "Get Quote" button replaces 6 service cards
-- **Fade Transition**: Mover photo and background content fade away when form starts
-- **Tile-Based Steps**: Each form step displayed as interactive tiles
-- **Back Button**: Always visible for easy navigation between steps
-- **Progress Indicator**: Visual progress bar showing completion status
-
-**Quote Form Flow Steps** (Based on Flowchart):
-
-**Step 1: Contact Information**
-- **Options**: Contact Info tile
-- **Fields**: Name, phone, email
-- **Validation**: Real-time validation with error states
-
-**Step 2: Move Type Selection**
-- **Tiles Available**:
-  - **Commercial Move** → Business/office relocation
-  - **Furniture Only Move/Packing/Unpacking** → Specific services
-  - **Residence** → Home/apartment moves
-  - **Just Delivery** → Delivery-only services
-
-**Step 3: Service Type (Based on Move Type)**
-*If Commercial Move selected:*
-- **Packing Type**: Full packing, partial packing, no packing
-- **Move Details**: Office size, equipment, timeline
-
-*If Furniture Only/Packing selected:*
-- **Service Options**: Moving only, packing only, unpacking only, combination
-- **Item Details**: Specific furniture pieces, quantity
-
-*If Residence selected:*
-- **Property Type**: House, apartment, condo, other
-- **Size Selection**: Studio, 1-bed, 2-bed, 3-bed, 4-bed, 5+ bed
-
-*If Just Delivery selected:*
-- **Delivery Type**: Single item, multiple items, appliances
-- **Special Requirements**: Heavy items, stairs, assembly
-
-**Step 4: Property Details** (For Residence)
-- **Current Home**: Property type, size, special considerations
-- **New Home**: Property type, accessibility, parking
-
-**Step 5: Move Details**
-- **Move Date**: Preferred date with calendar picker
-- **Flexibility**: Flexible dates, specific date only
-- **Timing**: Morning, afternoon, anytime
-- **Distance**: Local, long-distance options
-
-**Step 6: Special Services & Add-ons**
-- **Packing Services**: Full service, partial, supplies only
-- **Special Items**: Piano, safe, artwork, antiques
-- **Storage**: Temporary storage needs
-- **Additional Services**: Cleaning, handyman, staging
-
-**Step 7: Access & Logistics**
-- **Pickup Location**: Stairs, elevator, walk distance, parking
-- **Delivery Location**: Similar access questions
-- **Special Instructions**: Gates, codes, timing restrictions
-
-**Step 8: Budget & Preferences**
-- **Budget Range**: Approximate budget expectations
-- **Communication**: Preferred contact method and times
-- **Priority**: Schedule priority, service level preferences
-
-**Step 9: Review & Submit**
-- **Summary Review**: All selections displayed for confirmation
-- **Edit Options**: Quick links to modify any step
-- **Terms Agreement**: Service terms and conditions
-- **Submit Button**: "Get My Free Quote" final CTA
-
-**Step 10: Thank You & Next Steps**
-- **Confirmation**: Quote submitted successfully
-- **Timeline**: When to expect quote response
-- **Immediate Options**: Call now, schedule consultation
-- **Account Creation**: Optional customer portal signup
 
 **Technical Implementation Notes**:
 
