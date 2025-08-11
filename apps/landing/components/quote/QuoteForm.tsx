@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ServiceTypeStep from '@/components/quote/ServiceTypeStep';
 import MoveDetailsStep, { type MoveDetailsState } from '@/components/quote/MoveDetailsStep';
 import LocationDetailsStep from '@/components/quote/LocationDetailsStep';
@@ -14,6 +14,7 @@ export default function QuoteForm({ onBack }: Props) {
   const [serviceType, setServiceType] = useState<ServiceTypeOption | undefined>(undefined);
   const [moveDetails, setMoveDetails] = useState<MoveDetailsState>({});
   const [locationDetails, setLocationDetails] = useState<LocationDetailsState>({});
+  const [locationSlide, setLocationSlide] = useState<1 | 2>(1);
 
   const isStep2Complete = useMemo(() => {
     if (!serviceType) return false;
@@ -31,8 +32,25 @@ export default function QuoteForm({ onBack }: Props) {
     return Boolean(v.propertyType && v.residentialSize);
   }, [serviceType, moveDetails]);
 
+  // Determine if Step 3 uses single address or dual (From/To)
+  const isSingleAddressFlow = useMemo(() => {
+    if (!serviceType) return true;
+    const isJunk = serviceType === 'Junk Removal';
+    const isLabor = serviceType === 'Moving Labor';
+    const singleLabor = moveDetails.laborType === 'Load-Only' || moveDetails.laborType === 'Unload-Only' || moveDetails.laborType === 'Restaging / In-Home';
+    return isJunk || (isLabor && singleLabor);
+  }, [serviceType, moveDetails.laborType]);
+
+  // When entering Step 3 or changing flow type, reset to first sub-slide
+  useEffect(() => {
+    if (step === 3) setLocationSlide(1);
+  }, [step]);
+  useEffect(() => {
+    setLocationSlide(1);
+  }, [isSingleAddressFlow]);
+
   return (
-    <div className="absolute inset-0 rounded-xl border border-gray-200 bg-white p-6 shadow-lg">
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-lg max-h-[80vh] overflow-auto">
       <button className="text-sm underline" onClick={onBack}>← Back</button>
       <div className="mt-4">
         <h2 className="text-2xl font-bold">Start Your Quote</h2>
@@ -96,21 +114,34 @@ export default function QuoteForm({ onBack }: Props) {
                 moveDetails={moveDetails}
                 value={locationDetails}
                 onChange={(patch) => setLocationDetails((prev) => ({ ...prev, ...patch }))}
+                slide={isSingleAddressFlow ? 1 : locationSlide}
               />
               <div className="mt-6 flex items-center justify-between">
                 <button
                   type="button"
-                  aria-label="Back to Step 2"
-                  onClick={() => setStep(2)}
+                  aria-label={(!isSingleAddressFlow && locationSlide === 2) ? 'Back to Step 3 - From' : 'Back to Step 2'}
+                  onClick={() => {
+                    if (!isSingleAddressFlow && locationSlide === 2) {
+                      setLocationSlide(1);
+                    } else {
+                      setStep(2);
+                    }
+                  }}
                   className="rounded-lg px-4 py-2 text-sm font-semibold border border-gray-300 text-gray-800 hover:bg-gray-50"
                 >
                   ← Back
                 </button>
                 <button
                   type="button"
-                  aria-label="Continue to Step 4"
-                  disabled
-                  className="rounded-lg px-4 py-2 text-sm font-semibold border bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed"
+                  aria-label={(!isSingleAddressFlow && locationSlide === 1) ? 'Continue to Moving TO' : 'Continue to Step 4'}
+                  onClick={() => {
+                    if (!isSingleAddressFlow && locationSlide === 1) {
+                      setLocationSlide(2);
+                    } else {
+                      setStep(4);
+                    }
+                  }}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold transition border bg-black text-white border-black hover:opacity-90"
                 >
                   Next
                 </button>

@@ -52,6 +52,9 @@
 - [x] Step 1: Service Type (tile-based; 6 options)
 - [x] Step 2: Move Type & Property Type (conditional by service)
 - [x] Step 3: Location Details (Google Autocomplete; handicaps; multi-address)
+  - [x] Dual-address sub-slides (From → To)
+  - [x] "Multiple stops?" only on last/only slide
+  - [x] Exactly one Additional Stop, asking same questions (address, unit, stairs, walk distance) + Stop Type
 - [ ] Step 4: Additional Info (multi-select)
 - [ ] Step 5: Conditional Follow-Ups
 - [ ] Step 6: Contact Info (email → name → phone)
@@ -60,7 +63,8 @@
 - [ ] CRM pipeline integration and autosave
 - [ ] Unit tests for each step and error states
   - Added: `__tests__/QuoteForm.MoveDetails.test.tsx` (Step 2)
-  - Added: `__tests__/QuoteForm.LocationDetails.test.tsx` (Step 3 single vs dual address flows)
+  - Added: `__tests__/QuoteForm.LocationDetails.test.tsx` (Step 3 single vs dual address flows; Additional Stop includes stairs/walk and Stop Type)
 
 ### Notes
 - Set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` in `apps/landing/.env.local` for Google Places Autocomplete to be enabled in production. The UI gracefully falls back to a regular input if missing.
+ - Step 3 refined: Dual-address flows use sub-slides (From → To). "Multiple stops?" checkbox appears on the last slide (or the only slide for single-address flows) and reveals an Additional Stop address with Pickup/Dropoff selection. Exactly one Additional Stop is supported and includes the same questions as other locations (address, unit, stairs, walk distance) + Stop Type.

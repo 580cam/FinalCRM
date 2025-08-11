@@ -8,6 +8,8 @@ import {
   type WalkDistanceOption,
   STAIRS_OPTIONS,
   WALK_DISTANCE_OPTIONS,
+  type StopTypeOption,
+  STOP_TYPE_OPTIONS,
 } from "@/components/quote/types";
 import type { MoveDetailsState } from "@/components/quote/MoveDetailsStep";
 
@@ -16,6 +18,7 @@ type Props = {
   moveDetails: MoveDetailsState;
   value: LocationDetailsState;
   onChange: (patch: Partial<LocationDetailsState>) => void;
+  slide?: 1 | 2; // for dual-address flows
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -65,7 +68,7 @@ function TileGroup<T extends string>({
   );
 }
 
-export default function LocationDetailsStep({ serviceType, moveDetails, value, onChange }: Props) {
+export default function LocationDetailsStep({ serviceType, moveDetails, value, onChange, slide = 1 }: Props) {
   const isJunk = serviceType === "Junk Removal";
   const isLabor = serviceType === "Moving Labor";
   const singleLabor = moveDetails.laborType === "Load-Only" || moveDetails.laborType === "Unload-Only" || moveDetails.laborType === "Restaging / In-Home";
@@ -73,9 +76,10 @@ export default function LocationDetailsStep({ serviceType, moveDetails, value, o
 
   const updateFrom = (patch: Partial<LocationDetailsState["from"]>) => onChange({ from: { ...(value.from ?? {}), ...patch } });
   const updateTo = (patch: Partial<LocationDetailsState["to"]>) => onChange({ to: { ...(value.to ?? {}), ...patch } });
+  const updateStop = (patch: Partial<LocationDetailsState["additionalStop"]>) => onChange({ additionalStop: { ...(value.additionalStop ?? {}), ...patch } });
 
   type AddressBlockCfg = {
-    scope: "Service" | "From" | "To";
+    scope: "Service" | "From" | "To" | "Additional Stop";
     addressVal?: string;
     unitVal?: string;
     stairs?: StairsOption;
@@ -140,24 +144,10 @@ export default function LocationDetailsStep({ serviceType, moveDetails, value, o
       <p className="text-gray-700 mt-1">Add address details. Use autocomplete and select stairs and walk distances.</p>
 
       {isSingleAddress ? (
-        <Section title="Service Address">
-          {renderAddressBlock({
-            scope: "Service",
-            addressVal: value.from?.address,
-            unitVal: value.from?.unit,
-            stairs: value.from?.stairs,
-            walkDistance: value.from?.walkDistance,
-            onAddress: (v) => updateFrom({ address: v }),
-            onUnit: (v) => updateFrom({ unit: v }),
-            onStairs: (v) => updateFrom({ stairs: v }),
-            onWalk: (v) => updateFrom({ walkDistance: v }),
-          })}
-        </Section>
-      ) : (
         <>
-          <Section title="Moving FROM">
+          <Section title="Service Address">
             {renderAddressBlock({
-              scope: "From",
+              scope: "Service",
               addressVal: value.from?.address,
               unitVal: value.from?.unit,
               stairs: value.from?.stairs,
@@ -168,20 +158,124 @@ export default function LocationDetailsStep({ serviceType, moveDetails, value, o
               onWalk: (v) => updateFrom({ walkDistance: v }),
             })}
           </Section>
+          {/* Multiple stops on last (only) slide */}
+          <div className="mt-4" role="group" aria-label="Multiple Stops">
+            <label className="inline-flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                checked={Boolean(value.hasMultipleStops)}
+                onChange={() => onChange({ hasMultipleStops: !value.hasMultipleStops })}
+                aria-label="Multiple stops"
+              />
+              <span className="text-sm text-gray-800">
+                <span className="font-medium">Multiple stops?</span>
+                <span className="ml-2 text-gray-600">Add an extra pickup or dropoff location</span>
+              </span>
+            </label>
+          </div>
+          {value.hasMultipleStops && (
+            <>
+              <Section title="Additional Stop">
+                {renderAddressBlock({
+                  scope: "Additional Stop",
+                  addressVal: value.additionalStop?.address,
+                  unitVal: value.additionalStop?.unit,
+                  stairs: value.additionalStop?.stairs,
+                  walkDistance: value.additionalStop?.walkDistance,
+                  onAddress: (v) => updateStop({ address: v }),
+                  onUnit: (v) => updateStop({ unit: v }),
+                  onStairs: (v) => updateStop({ stairs: v }),
+                  onWalk: (v) => updateStop({ walkDistance: v }),
+                })}
+                <TileGroup<StopTypeOption>
+                  label="Stop Type"
+                  options={STOP_TYPE_OPTIONS}
+                  selected={value.additionalStop?.stopType}
+                  onSelect={(v) => updateStop({ stopType: v })}
+                  ariaLabel="Additional Stop Type"
+                  columns={2}
+                />
+              </Section>
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          {slide === 1 && (
+            <Section title="Moving FROM">
+              {renderAddressBlock({
+                scope: "From",
+                addressVal: value.from?.address,
+                unitVal: value.from?.unit,
+                stairs: value.from?.stairs,
+                walkDistance: value.from?.walkDistance,
+                onAddress: (v) => updateFrom({ address: v }),
+                onUnit: (v) => updateFrom({ unit: v }),
+                onStairs: (v) => updateFrom({ stairs: v }),
+                onWalk: (v) => updateFrom({ walkDistance: v }),
+              })}
+            </Section>
+          )}
 
-          <Section title="Moving TO">
-            {renderAddressBlock({
-              scope: "To",
-              addressVal: value.to?.address,
-              unitVal: value.to?.unit,
-              stairs: value.to?.stairs,
-              walkDistance: value.to?.walkDistance,
-              onAddress: (v) => updateTo({ address: v }),
-              onUnit: (v) => updateTo({ unit: v }),
-              onStairs: (v) => updateTo({ stairs: v }),
-              onWalk: (v) => updateTo({ walkDistance: v }),
-            })}
-          </Section>
+          {slide === 2 && (
+            <>
+              <Section title="Moving TO">
+                {renderAddressBlock({
+                  scope: "To",
+                  addressVal: value.to?.address,
+                  unitVal: value.to?.unit,
+                  stairs: value.to?.stairs,
+                  walkDistance: value.to?.walkDistance,
+                  onAddress: (v) => updateTo({ address: v }),
+                  onUnit: (v) => updateTo({ unit: v }),
+                  onStairs: (v) => updateTo({ stairs: v }),
+                  onWalk: (v) => updateTo({ walkDistance: v }),
+                })}
+              </Section>
+              {/* Multiple stops on last slide */}
+              <div className="mt-4" role="group" aria-label="Multiple Stops">
+                <label className="inline-flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                    checked={Boolean(value.hasMultipleStops)}
+                    onChange={() => onChange({ hasMultipleStops: !value.hasMultipleStops })}
+                    aria-label="Multiple stops"
+                  />
+                  <span className="text-sm text-gray-800">
+                    <span className="font-medium">Multiple stops?</span>
+                    <span className="ml-2 text-gray-600">Add an extra pickup or dropoff location</span>
+                  </span>
+                </label>
+              </div>
+              {value.hasMultipleStops && (
+                <>
+                  <Section title="Additional Stop">
+                    {renderAddressBlock({
+                      scope: "Additional Stop",
+                      addressVal: value.additionalStop?.address,
+                      unitVal: value.additionalStop?.unit,
+                      stairs: value.additionalStop?.stairs,
+                      walkDistance: value.additionalStop?.walkDistance,
+                      onAddress: (v) => updateStop({ address: v }),
+                      onUnit: (v) => updateStop({ unit: v }),
+                      onStairs: (v) => updateStop({ stairs: v }),
+                      onWalk: (v) => updateStop({ walkDistance: v }),
+                    })}
+                    <TileGroup<StopTypeOption>
+                      label="Stop Type"
+                      options={STOP_TYPE_OPTIONS}
+                      selected={value.additionalStop?.stopType}
+                      onSelect={(v) => updateStop({ stopType: v })}
+                      ariaLabel="Additional Stop Type"
+                      columns={2}
+                    />
+                  </Section>
+                </>
+              )}
+            </>
+          )}
         </>
       )}
     </div>
