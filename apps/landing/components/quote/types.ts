@@ -115,4 +115,20 @@ export type AddressInfo = {
 export type LocationDetailsState = {
   from?: AddressInfo;
   to?: AddressInfo; // optional for single-address flows
+  hasMultipleStops?: boolean;
+  additionalStop?: AddressInfo & { stopType?: StopTypeOption };
+};
+
+export type StopTypeOption = 'Pickup' | 'Dropoff';
+export const STOP_TYPE_OPTIONS: StopTypeOption[] = ['Pickup', 'Dropoff'];
+
+// Step 4: Additional Info (Multi-Select)
+export type AdditionalInfoState = {
+  piano?: boolean;
+  gunSafe?: boolean;
+  bulkyItem?: boolean;
+  antiqueArtwork?: boolean;
+  packingOrCrating?: boolean; // Label depends on service type
+  within24hrs?: boolean;
+  storageNeeded?: boolean;
 };

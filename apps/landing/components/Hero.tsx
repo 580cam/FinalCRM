@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import QuoteForm from '@/components/quote/QuoteForm';
 
 export default function Hero() {
   const [showForm, setShowForm] = useState(false);
@@ -36,13 +37,7 @@ export default function Hero() {
 
         {/* Appearing form placeholder */}
         {showForm && (
-          <div className="absolute inset-0 rounded-xl border border-gray-200 bg-white p-6 shadow-lg">
-            <button className="text-sm underline" onClick={() => setShowForm(false)}>← Back</button>
-            <div className="mt-4">
-              <h2 className="text-2xl font-bold">Start Your Quote</h2>
-              <p className="text-gray-700">Quote form coming next. This is a placeholder for now.</p>
-            </div>
-          </div>
+          <QuoteForm onBack={() => setShowForm(false)} />
         )}
       </div>
     </section>

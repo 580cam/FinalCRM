@@ -55,7 +55,7 @@
   - [x] Dual-address sub-slides (From → To)
   - [x] "Multiple stops?" only on last/only slide
   - [x] Exactly one Additional Stop, asking same questions (address, unit, stairs, walk distance) + Stop Type
-- [ ] Step 4: Additional Info (multi-select)
+- [x] Step 4: Additional Info (multi-select)
 - [ ] Step 5: Conditional Follow-Ups
 - [ ] Step 6: Contact Info (email → name → phone)
 - [ ] Step 7: Loader / Manual Review triggers
@@ -64,6 +64,7 @@
 - [ ] Unit tests for each step and error states
   - Added: `__tests__/QuoteForm.MoveDetails.test.tsx` (Step 2)
   - Added: `__tests__/QuoteForm.LocationDetails.test.tsx` (Step 3 single vs dual address flows; Additional Stop includes stairs/walk and Stop Type)
+  - Added: `__tests__/QuoteForm.AdditionalInfo.test.tsx` (Step 4 labels and multi-select toggling)
 
 ### Notes
 - Set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` in `apps/landing/.env.local` for Google Places Autocomplete to be enabled in production. The UI gracefully falls back to a regular input if missing.
