@@ -46,3 +46,17 @@
 - [x] Install deps and run tests for landing app
 - [x] Hook up Elfsight reviews (requires widget ID)
 - [ ] Polish copy, imagery, and brand assets to match spec exactly
+
+## Quote Form (apps/landing)
+
+- [x] Step 1: Service Type (tile-based; 6 options)
+- [x] Step 2: Move Type & Property Type (conditional by service)
+- [ ] Step 3: Location Details (Google Autocomplete; handicaps; multi-address)
+- [ ] Step 4: Additional Info (multi-select)
+- [ ] Step 5: Conditional Follow-Ups
+- [ ] Step 6: Contact Info (email → name → phone)
+- [ ] Step 7: Loader / Manual Review triggers
+- [ ] Real-time pricing integration (shared package)
+- [ ] CRM pipeline integration and autosave
+- [ ] Unit tests for each step and error states
+  - Added: `__tests__/QuoteForm.MoveDetails.test.tsx` covering Step 2 conditional UI across service types
