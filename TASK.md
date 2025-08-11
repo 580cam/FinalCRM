@@ -44,5 +44,5 @@
   - `components/Footer.tsx`
 - [x] Minimal tests: `__tests__/Header.test.tsx`, `__tests__/Hero.test.tsx`, `__tests__/SocialProof.test.tsx`
 - [x] Install deps and run tests for landing app
-- [ ] Hook up Elfsight reviews (requires widget ID)
+- [x] Hook up Elfsight reviews (requires widget ID)
 - [ ] Polish copy, imagery, and brand assets to match spec exactly

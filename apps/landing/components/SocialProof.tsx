@@ -14,18 +14,9 @@ export default function SocialProof() {
           ))}
         </div>
 
-        {/* Elfsight Review Widget Integration Placeholder */}
+        {/* Elfsight Reviews Widget */}
         <div className="mt-6">
-          {/*
-            To enable Elfsight reviews, create a Reviews widget at https://elfsight.com
-            Then paste their provided script and widget container below.
-            Example:
-            <script src="https://apps.elfsight.com/p/platform.js" defer></script>
-            <div className="elfsight-app-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" data-elfsight-app-lazy></div>
-          */}
-          <div className="border rounded-md p-6 text-center text-gray-600">
-            Live reviews widget placeholder. Connect Elfsight to load Google, Facebook, and Yelp reviews in real-time.
-          </div>
+          <div className="elfsight-app-a44607a0-95ae-4607-aa37-23352073345a" data-elfsight-app-lazy></div>
           <div className="mt-3 text-center">
             <a href="#" className="underline">Write a review</a>
           </div>

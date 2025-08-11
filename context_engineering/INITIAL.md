@@ -3813,9 +3813,9 @@ This comprehensive Crew Mobile App provides specialized functionality for field 
 **If Moving, Full Service, or White Glove Selected:**
 *(All three service types follow the same flow)*
 - Property Type: Apartment-Condo | House | Townhouse | Storage
-  - **Apartment-Condo** → Move Size: Studio | 1-2 Bed | 3-4 Bed | Few Items
-  - **House-Townhouse** → Move Size: 1-2 Bed | 3-4 Bed | 5 Bed+ | Few Items
-    - **Additional Checkboxes**: Office, Patio, Garage, Shed
+  - **Apartment-Condo** → Move Size: Studio 1bed | 2 bed | 3 bed | 4 bed | Few Items
+  - **House-Townhouse** → Move Size: 1bed | 2 bed | 3 bed | 4 bed | 5 bed | Few Items
+    - **Additional Checkboxes**: Large? : Following - (Office, Patio, Garage, Shed)
   - **Storage** → Unit Size: 5×5 | 5×10 | 10×10 | 10×15 | 10×20 | Few Items
 
 **If Moving Labor Selected:**
@@ -3849,7 +3849,7 @@ This comprehensive Crew Mobile App provides specialized functionality for field 
 - Gun Safe
 - Bulky Item (Hot Tub, Exercise Machine, Play Set, etc.)
 - Antique / Artwork (>$2k)
-- Packing Needed?
+- Packing Needed? (If white glove and full service replace with crating needed?)
 - Need Help Within 24 hrs?
 - Storage Needed?
 
@@ -3861,7 +3861,9 @@ This comprehensive Crew Mobile App provides specialized functionality for field 
 - **If Storage** → Overnight (days?) | Long-term (weeks?)
 - **If Bulky** → Describe item (text field)
 
-#### **Step 6: Contact Info Collection**
+#### **Step 6: Contact Info Collection** eahch is different slide
+
+We just need a few more details to send you quote over
 1. **Email** (collected first)
 2. **Name** 
 3. **Phone**

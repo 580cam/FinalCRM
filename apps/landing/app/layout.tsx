@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'High Quality Moving | OKC Movers',
@@ -9,7 +10,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {/* Elfsight Platform Script */}
+        <Script src="https://static.elfsight.com/platform/platform.js" async />
+        {children}
+      </body>
     </html>
   );
 }
