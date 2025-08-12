@@ -5,7 +5,8 @@ import MoveDetailsStep, { type MoveDetailsState } from '@/components/quote/MoveD
 import LocationDetailsStep from '@/components/quote/LocationDetailsStep';
 import AdditionalInfoStep from '@/components/quote/AdditionalInfoStep';
 import ConditionalFollowUpsStep from '@/components/quote/ConditionalFollowUpsStep';
-import type { ServiceTypeOption, LocationDetailsState, AdditionalInfoState, ConditionalFollowUpsState } from '@/components/quote/types';
+import ContactInfoStep from '@/components/quote/ContactInfoStep';
+import type { ServiceTypeOption, LocationDetailsState, AdditionalInfoState, ConditionalFollowUpsState, ContactInfoState } from '@/components/quote/types';
 
 type Props = {
   onBack: () => void;
@@ -19,6 +20,8 @@ export default function QuoteForm({ onBack }: Props) {
   const [locationSlide, setLocationSlide] = useState<1 | 2>(1);
   const [additionalInfo, setAdditionalInfo] = useState<AdditionalInfoState>({});
   const [followUps, setFollowUps] = useState<ConditionalFollowUpsState>({});
+  const [contactInfo, setContactInfo] = useState<ContactInfoState>({});
+  const [contactSlide, setContactSlide] = useState<1 | 2 | 3>(1);
 
   const isStep2Complete = useMemo(() => {
     if (!serviceType) return false;
@@ -52,6 +55,11 @@ export default function QuoteForm({ onBack }: Props) {
   useEffect(() => {
     setLocationSlide(1);
   }, [isSingleAddressFlow]);
+
+  // Reset contact sub-slide when entering Step 6
+  useEffect(() => {
+    if (step === 6) setContactSlide(1);
+  }, [step]);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-lg max-h-[80vh] overflow-auto">
@@ -205,6 +213,56 @@ export default function QuoteForm({ onBack }: Props) {
                 >
                   Next
                 </button>
+              </div>
+            </>
+          )}
+
+          {step === 6 && (
+            <>
+              <ContactInfoStep
+                slide={contactSlide}
+                value={contactInfo}
+                onChange={(patch) => setContactInfo((prev) => ({ ...prev, ...patch }))}
+              />
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  type="button"
+                  aria-label={contactSlide === 1 ? 'Back to Step 5' : (contactSlide === 2 ? 'Back to Email' : 'Back to Name')}
+                  onClick={() => {
+                    if (contactSlide === 1) setStep(5);
+                    else if (contactSlide === 2) setContactSlide(1);
+                    else setContactSlide(2);
+                  }}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold border border-gray-300 text-gray-800 hover:bg-gray-50"
+                >
+                  ← Back
+                </button>
+                {(() => {
+                  const emailValid = Boolean(contactInfo.email && /.+@.+\..+/.test(contactInfo.email));
+                  const nameValid = Boolean((contactInfo.firstName || '').trim() && (contactInfo.lastName || '').trim());
+                  const digits = (contactInfo.phone || '').replace(/\D/g, '');
+                  const phoneValid = digits.length >= 10; // minimal validation: at least 10 digits
+                  const canNext = contactSlide === 1 ? emailValid : contactSlide === 2 ? nameValid : phoneValid;
+                  const aria = contactSlide === 1 ? 'Continue to Name' : contactSlide === 2 ? 'Continue to Phone' : 'Continue to Step 7';
+                  return (
+                    <button
+                      type="button"
+                      aria-label={aria}
+                      disabled={!canNext}
+                      onClick={() => {
+                        if (contactSlide === 1) setContactSlide(2);
+                        else if (contactSlide === 2) setContactSlide(3);
+                        else setStep(7);
+                      }}
+                      className={[
+                        'rounded-lg px-4 py-2 text-sm font-semibold transition border',
+                        canNext ? 'bg-black text-white border-black hover:opacity-90' : 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed',
+                      ].join(' ')}
+                    >
+                      Next
+                    </button>
+                  );
+                })()}
               </div>
             </>
           )}

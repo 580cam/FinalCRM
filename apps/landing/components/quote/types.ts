@@ -162,3 +162,11 @@ export type ConditionalFollowUpsState = {
   // If Bulky Item
   bulkyDescription?: string;
 };
+
+// Step 6: Contact Info
+export type ContactInfoState = {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+};
