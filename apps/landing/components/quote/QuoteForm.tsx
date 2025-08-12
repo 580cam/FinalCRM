@@ -4,7 +4,8 @@ import ServiceTypeStep from '@/components/quote/ServiceTypeStep';
 import MoveDetailsStep, { type MoveDetailsState } from '@/components/quote/MoveDetailsStep';
 import LocationDetailsStep from '@/components/quote/LocationDetailsStep';
 import AdditionalInfoStep from '@/components/quote/AdditionalInfoStep';
-import type { ServiceTypeOption, LocationDetailsState, AdditionalInfoState } from '@/components/quote/types';
+import ConditionalFollowUpsStep from '@/components/quote/ConditionalFollowUpsStep';
+import type { ServiceTypeOption, LocationDetailsState, AdditionalInfoState, ConditionalFollowUpsState } from '@/components/quote/types';
 
 type Props = {
   onBack: () => void;
@@ -17,6 +18,7 @@ export default function QuoteForm({ onBack }: Props) {
   const [locationDetails, setLocationDetails] = useState<LocationDetailsState>({});
   const [locationSlide, setLocationSlide] = useState<1 | 2>(1);
   const [additionalInfo, setAdditionalInfo] = useState<AdditionalInfoState>({});
+  const [followUps, setFollowUps] = useState<ConditionalFollowUpsState>({});
 
   const isStep2Complete = useMemo(() => {
     if (!serviceType) return false;
@@ -171,6 +173,34 @@ export default function QuoteForm({ onBack }: Props) {
                   type="button"
                   aria-label="Continue to Step 5"
                   onClick={() => setStep(5)}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold transition border bg-black text-white border-black hover:opacity-90"
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+              <ConditionalFollowUpsStep
+                additionalInfo={additionalInfo}
+                value={followUps}
+                onChange={(patch) => setFollowUps((prev) => ({ ...prev, ...patch }))}
+              />
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  type="button"
+                  aria-label="Back to Step 4"
+                  onClick={() => setStep(4)}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold border border-gray-300 text-gray-800 hover:bg-gray-50"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  aria-label="Continue to Step 6"
+                  onClick={() => setStep(6)}
                   className="rounded-lg px-4 py-2 text-sm font-semibold transition border bg-black text-white border-black hover:opacity-90"
                 >
                   Next

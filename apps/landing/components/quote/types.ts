@@ -132,3 +132,33 @@ export type AdditionalInfoState = {
   within24hrs?: boolean;
   storageNeeded?: boolean;
 };
+
+// Step 5: Conditional Follow-Ups (Based on Step 4 selections)
+export type PackingLevelOption = 'Minimalist' | 'Normal' | 'Pack Rat';
+export const PACKING_LEVEL_OPTIONS: PackingLevelOption[] = ['Minimalist', 'Normal', 'Pack Rat'];
+
+export type PianoTypeOption = 'Upright' | 'Baby Grand' | 'Grand';
+export const PIANO_TYPE_OPTIONS: PianoTypeOption[] = ['Upright', 'Baby Grand', 'Grand'];
+
+export type GunSafeWeightOption = 'Weight <350' | '350-500' | '500+';
+export const GUN_SAFE_WEIGHT_OPTIONS: GunSafeWeightOption[] = ['Weight <350', '350-500', '500+'];
+
+export type StorageDurationType = 'Overnight' | 'Long-term';
+
+export type ConditionalFollowUpsState = {
+  // If Packing
+  packingLevel?: PackingLevelOption;
+  // If Piano
+  pianoType?: PianoTypeOption;
+  // If Gun Safe
+  gunSafeWeight?: GunSafeWeightOption;
+  // If Antique / Artwork
+  antiqueDescription?: string;
+  antiqueNeedCrate?: boolean;
+  // If Storage Needed
+  storageDurationType?: StorageDurationType;
+  storageOvernightDays?: number; // used when storageDurationType === 'Overnight'
+  storageLongTermWeeks?: number; // used when storageDurationType === 'Long-term'
+  // If Bulky Item
+  bulkyDescription?: string;
+};
